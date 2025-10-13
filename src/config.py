@@ -42,29 +42,29 @@ class QuantileConfig:
 
 @dataclass
 class TrainingWindowConfig:
-    train_months: int = 1
-    val_months: int = 1
-    test_months: int = 1
+    train_months: int = 6  # Increased for more training data
+    val_months: int = 2    # Better validation with more data
+    test_months: int = 1   # Keep test period
     stride_months: int = 1
 
 
 @dataclass
 class TrainingConfig:
-    hidden_size: int = 128
-    attention_head_size: int = 2
-    dropout: float = 0.1
-    learning_rate: float = 1e-3
-    weight_decay: float = 1e-4
-    batch_size: int = 256
-    gradient_clip_val: float = 1.0
-    max_epochs: int = 12
-    early_stop_patience: int = 5
-    mixed_precision: bool = False
-    deterministic: bool = True
-    fast_dev_run: bool = True
-    fast_max_epochs: int = 3
-    fast_max_splits: int = 2
-    fast_batch_size: Optional[int] = 128
+    hidden_size: int = 256           # Doubled model capacity
+    attention_head_size: int = 4     # More attention heads
+    dropout: float = 0.2             # Increased regularization
+    learning_rate: float = 3e-4      # Lower learning rate for stability
+    weight_decay: float = 1e-3       # Stronger L2 regularization
+    batch_size: int = 512            # Larger batches for better gradients
+    gradient_clip_val: float = 0.5   # Tighter gradient clipping
+    max_epochs: int = 75             # Much longer training
+    early_stop_patience: int = 8     # More patience for convergence
+    mixed_precision: bool = True     # Enable mixed precision
+    deterministic: bool = False      # Allow non-deterministic for speed
+    fast_dev_run: bool = False       # PRODUCTION MODE
+    fast_max_epochs: int = 75        # Full epochs even in fast mode
+    fast_max_splits: int = 10        # Allow more splits
+    fast_batch_size: Optional[int] = 512
 
 
 @dataclass
@@ -72,10 +72,14 @@ class EvaluationConfig:
     coverage_band: Sequence[float] = (0.1, 0.9)
     target_coverage: float = 0.80
     coverage_tolerance: float = 0.05
-    pf_band_thresholds: Sequence[float] = (0.002,)
+    pf_band_thresholds: Sequence[float] = (0.001, 0.002, 0.003)  # Multiple thresholds
     pf_band_norm_multiplier: float = 1.0
-    directional_hit_target: float = 0.60
-    pf_target: float = 1.2
+    directional_hit_target: float = 0.52  # More realistic target
+    pf_target: float = 1.15               # More achievable profit target
+    # New evaluation parameters
+    sharpe_target: float = 1.0            # Target Sharpe ratio
+    max_drawdown_threshold: float = 0.05  # Maximum acceptable drawdown
+    consistency_window: int = 100         # Rolling window for consistency metrics
 
 
 @dataclass

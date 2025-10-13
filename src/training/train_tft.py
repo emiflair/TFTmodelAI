@@ -29,8 +29,17 @@ from ..evaluation.metrics import (
     pinball_loss,
     simple_profit_factor,
 )
+from ..evaluation.enhanced_metrics import (
+    calculate_sharpe_ratio,
+    calculate_max_drawdown,
+    calculate_hit_rate_by_regime,
+    calculate_prediction_consistency,
+    calculate_risk_adjusted_returns,
+    trading_performance_summary,
+)
 from ..pipeline import build_training_frames
 from ..preprocessing.scalers import RobustScalerStore
+from ..preprocessing.enhanced_scalers import EnhancedScalerStore, detect_feature_types
 from ..utils.seeding import set_global_seeds
 
 
@@ -165,6 +174,47 @@ def _effective_training_params(config: ProjectConfig) -> Dict[str, int]:
     return params
 
 
+def _create_enhanced_loss(base_loss, config: ProjectConfig):
+    """Create enhanced loss function combining quantile loss with directional accuracy."""
+    
+    class EnhancedQuantileLoss:
+        def __init__(self, base_quantile_loss, directional_weight=0.1):
+            self.base_loss = base_quantile_loss
+            self.directional_weight = directional_weight
+            
+        def __call__(self, predictions, target):
+            # Base quantile loss
+            quantile_loss = self.base_loss(predictions, target)
+            
+            # Directional loss component
+            if hasattr(predictions, 'shape') and len(predictions.shape) > 1:
+                # Extract median predictions (assuming 0.5 quantile is in the middle)
+                n_quantiles = predictions.shape[-1]
+                median_idx = n_quantiles // 2
+                median_pred = predictions[..., median_idx]
+                
+                # Directional accuracy loss (minimize when directions match)
+                target_direction = torch.sign(target)
+                pred_direction = torch.sign(median_pred)
+                
+                # Binary cross-entropy for direction prediction
+                directional_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                    median_pred, 
+                    (target > 0).float(),
+                    reduction='mean'
+                )
+                
+                # Combine losses
+                total_loss = quantile_loss + self.directional_weight * directional_loss
+                
+                return total_loss
+            else:
+                # Fallback to base loss if shape is unexpected
+                return quantile_loss
+    
+    return EnhancedQuantileLoss(base_loss, directional_weight=0.15)
+
+
 def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
     ensure_artifact_dirs(config.artifacts)
     set_global_seeds(config.seed.global_seed)
@@ -233,18 +283,28 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
         if train_df_raw.empty or val_df_raw.empty or test_df_raw.empty:
             continue
 
-        scaler = RobustScalerStore()
-        scaler.fit(train_df_raw, scale_columns)
+        # Enhanced preprocessing with intelligent feature type detection
+        feature_types = detect_feature_types(train_df_raw, scale_columns)
+        
+        scaler = EnhancedScalerStore(default_method="robust")
+        scaler.fit(train_df_raw, scale_columns, feature_types=feature_types)
         scaler_path = config.artifacts.scalers_dir / f"scaler_EURUSD_fold{idx}.pkl"
         scaler.save(scaler_path)
+        
+        # Also save legacy scaler for compatibility
+        legacy_scaler = RobustScalerStore()
+        legacy_scaler.fit(train_df_raw, scale_columns)
+        legacy_scaler_path = config.artifacts.scalers_dir / f"legacy_scaler_EURUSD_fold{idx}.pkl"
+        legacy_scaler.save(legacy_scaler_path)
 
         train_df = train_df_raw.copy()
         val_df = val_df_raw.copy()
         test_df = test_df_raw.copy()
 
-        scaler.transform_inplace(train_df)
-        scaler.transform_inplace(val_df)
-        scaler.transform_inplace(test_df)
+        # Apply enhanced preprocessing with winsorization
+        scaler.transform_inplace(train_df, winsorize=True)
+        scaler.transform_inplace(val_df, winsorize=True) 
+        scaler.transform_inplace(test_df, winsorize=True)
 
         max_encoder_length = config.data.lookback_bars
         training_ds = pf.TimeSeriesDataSet(
@@ -280,6 +340,7 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             mode="min",
         )
 
+        # Use standard QuantileLoss for compatibility (enhanced loss will be added later)
         loss = QuantileLoss(quantiles=list(config.quantiles.quantiles))
 
         model = TemporalFusionTransformer.from_dataset(
@@ -291,20 +352,31 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             loss=loss,
             weight_decay=config.training.weight_decay,
             log_interval=10,
-            reduce_on_plateau_patience=2,
+            reduce_on_plateau_patience=4,  # Increased patience
+            # Enhanced architecture parameters
+            lstm_layers=3,  # Additional LSTM layers for more capacity
+            hidden_continuous_size=config.training.hidden_size // 2,  # Continuous variable processing
+            output_size=len(config.quantiles.quantiles),  # Explicit output size
         )
 
         precision_setting = "16-mixed" if config.training.mixed_precision else 32
 
+        # Enhanced trainer with advanced optimizations
         trainer = pl.Trainer(
             max_epochs=runtime_params["max_epochs"],
             gradient_clip_val=config.training.gradient_clip_val,
             callbacks=[early_stop, checkpoint_callback],
             deterministic=config.training.deterministic,
             enable_progress_bar=True,
-            enable_model_summary=False,
+            enable_model_summary=True,  # Enable model summary for debugging
             precision=precision_setting,
             log_every_n_steps=config.logging.log_every_n_steps,
+            # Advanced training optimizations
+            accumulate_grad_batches=2,  # Gradient accumulation for larger effective batch size
+            val_check_interval=0.25,    # More frequent validation checks
+            num_sanity_val_steps=2,     # Sanity check validation
+            profiler="simple",          # Enable profiling for performance monitoring
+            enable_checkpointing=True,  # Enable automatic checkpointing
         )
 
         trainer.fit(model, train_dl, val_dl)
@@ -431,6 +503,12 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             ),
         }
 
+        # Enhanced evaluation metrics
+        risk_metrics = calculate_risk_adjusted_returns(test_df_eval)
+        regime_hit_rates = calculate_hit_rate_by_regime(test_df_eval)
+        consistency_metrics = calculate_prediction_consistency(test_df_eval)
+        trading_summary = trading_performance_summary(test_df_eval, lower_name, median_name, upper_name)
+        
         result_row = {
             "fold": idx,
             "split": split.to_dict(),
@@ -442,6 +520,19 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             "pf": pf_results,
             "coverage_breakdown": group_breakdowns,
             "reliability": reliability,
+            # Enhanced metrics
+            "risk_metrics": risk_metrics,
+            "regime_performance": regime_hit_rates,
+            "consistency": consistency_metrics,
+            "trading_summary": {
+                "sharpe_ratio": trading_summary.sharpe_ratio,
+                "max_drawdown": trading_summary.max_drawdown,
+                "win_rate": trading_summary.win_rate,
+                "profit_factor": trading_summary.profit_factor,
+                "total_return": trading_summary.total_return,
+                "calmar_ratio": trading_summary.calmar_ratio,
+                "sortino_ratio": trading_summary.sortino_ratio,
+            },
         }
         results.append(result_row)
 
@@ -482,10 +573,17 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             "Fold metrics:",
         ]
         for row in results:
+            trading_summary = row.get('trading_summary', {})
             card_lines.append(
                 f"  Fold {row['fold']} ({row['split']['train_start']}→{row['split']['test_end']}): "
                 f"CRPS={row['crps']:.4f}, Coverage={row['coverage']:.3f}, "
                 f"DirectionalHit={row['directional_hit']:.3f}, PF(0.002)={row['pf'].get('0.002', float('nan')):.3f}"
+            )
+            card_lines.append(
+                f"    Trading: Sharpe={trading_summary.get('sharpe_ratio', float('nan')):.2f}, "
+                f"MaxDD={trading_summary.get('max_drawdown', float('nan')):.3f}, "
+                f"WinRate={trading_summary.get('win_rate', float('nan')):.3f}, "
+                f"Calmar={trading_summary.get('calmar_ratio', float('nan')):.2f}"
             )
         card_lines.extend(
             [

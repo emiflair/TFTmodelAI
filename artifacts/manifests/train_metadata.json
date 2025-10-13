@@ -6,7 +6,7 @@
       "torch_seed": null
     },
     "data": {
-      "csv_path": "/Users/emifeaustin/Desktop/TFTmodel/EURUSD_15M.csv",
+      "csv_path": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\EURUSD_15M.csv",
       "timezone": "UTC",
       "frequency": "15min",
       "lookback_bars": 256,
@@ -28,27 +28,27 @@
       ]
     },
     "windows": {
-      "train_months": 1,
-      "val_months": 1,
+      "train_months": 6,
+      "val_months": 2,
       "test_months": 1,
       "stride_months": 1
     },
     "training": {
-      "hidden_size": 128,
-      "attention_head_size": 2,
-      "dropout": 0.1,
-      "learning_rate": 0.001,
-      "weight_decay": 0.0001,
-      "batch_size": 256,
-      "gradient_clip_val": 1.0,
-      "max_epochs": 12,
-      "early_stop_patience": 5,
-      "mixed_precision": false,
-      "deterministic": true,
-      "fast_dev_run": true,
-      "fast_max_epochs": 3,
-      "fast_max_splits": 2,
-      "fast_batch_size": 128
+      "hidden_size": 256,
+      "attention_head_size": 4,
+      "dropout": 0.2,
+      "learning_rate": 0.0003,
+      "weight_decay": 0.001,
+      "batch_size": 512,
+      "gradient_clip_val": 0.5,
+      "max_epochs": 75,
+      "early_stop_patience": 8,
+      "mixed_precision": true,
+      "deterministic": false,
+      "fast_dev_run": false,
+      "fast_max_epochs": 75,
+      "fast_max_splits": 10,
+      "fast_batch_size": 512
     },
     "evaluation": {
       "coverage_band": [
@@ -58,19 +58,24 @@
       "target_coverage": 0.8,
       "coverage_tolerance": 0.05,
       "pf_band_thresholds": [
-        0.002
+        0.001,
+        0.002,
+        0.003
       ],
       "pf_band_norm_multiplier": 1.0,
-      "directional_hit_target": 0.6,
-      "pf_target": 1.2
+      "directional_hit_target": 0.52,
+      "pf_target": 1.15,
+      "sharpe_target": 1.0,
+      "max_drawdown_threshold": 0.05,
+      "consistency_window": 100
     },
     "artifacts": {
-      "checkpoint_dir": "/Users/emifeaustin/Desktop/TFTmodel/artifacts/checkpoints",
-      "scalers_dir": "/Users/emifeaustin/Desktop/TFTmodel/artifacts/scalers",
-      "manifests_dir": "/Users/emifeaustin/Desktop/TFTmodel/artifacts/manifests",
-      "metrics_dir": "/Users/emifeaustin/Desktop/TFTmodel/artifacts/metrics",
-      "model_cards_dir": "/Users/emifeaustin/Desktop/TFTmodel/artifacts/model_cards",
-      "latest_symlink": "/Users/emifeaustin/Desktop/TFTmodel/artifacts/checkpoints/tft_EURUSD_15m_3B_latest.ckpt"
+      "checkpoint_dir": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\checkpoints",
+      "scalers_dir": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\scalers",
+      "manifests_dir": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\manifests",
+      "metrics_dir": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\metrics",
+      "model_cards_dir": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\model_cards",
+      "latest_symlink": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\checkpoints\\tft_EURUSD_15m_3B_latest.ckpt"
     },
     "logging": {
       "enable_tensorboard": true,
@@ -79,11 +84,11 @@
     }
   },
   "version_info": {
-    "python": "3.11.13",
-    "pytorch": "2.2.2",
+    "python": "3.13.5",
+    "pytorch": "2.8.0+cpu",
     "pytorch_lightning": "2.5.5",
-    "pytorch_forecasting": "1.4.0",
-    "git_commit": "not_available"
+    "pytorch_forecasting": "1.5.0",
+    "git_commit": "bb55224f6841209dfcdc1e13cf7c2e212da83575"
   },
   "data_summary": {
     "initial_rows": 439484,
@@ -95,5 +100,5 @@
       "atr_proxy"
     ]
   },
-  "created_at": "2025-10-13T00:57:23.718876"
+  "created_at": "2025-10-13T21:34:50.761795"
 }
