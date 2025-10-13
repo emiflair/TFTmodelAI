@@ -1,0 +1,28 @@
+{
+    "chat.agent.maxRequests": 50,
+    "cSpell.words": [
+        "allclose",
+        "bollinger",
+        "categoricals",
+        "crps",
+        "cudnn",
+        "EURUSD",
+        "ffilled",
+        "fout",
+        "hparams",
+        "isin",
+        "levelname",
+        "lookback",
+        "matplotlib",
+        "ndarray",
+        "newaxis",
+        "numpy",
+        "PYTHONHASHSEED",
+        "scipy",
+        "seaborn",
+        "statsmodels",
+        "timesteps",
+        "winsorize",
+        "winsorized"
+    ]
+}

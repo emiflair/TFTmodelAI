@@ -1,0 +1,57 @@
+{
+  "fold": 1,
+  "split": {
+    "train_start": "2007-01-01T20:00:00+00:00",
+    "train_end": "2007-02-01T20:00:00+00:00",
+    "val_end": "2007-03-01T20:00:00+00:00",
+    "test_end": "2007-04-01T20:00:00+00:00"
+  },
+  "checkpoint": "tft_EURUSD_15m_3B_20070101_20070401.ckpt",
+  "pinball": {
+    "0.1": 0.005229997914284468,
+    "0.5": 0.04723871871829033,
+    "0.9": 0.006210376042872667
+  },
+  "crps": 0.11735818535089493,
+  "coverage": 0.8822393822393823,
+  "directional_hit": 0.4878286270691334,
+  "pf": {
+    "0.002": 0.6780192779401414,
+    "1x_atr": 0.6780192779401414
+  },
+  "coverage_breakdown": {
+    "session_Asia": {
+      "coverage": 0.8313953488372093,
+      "directional_hit": 0.49854227405247814
+    },
+    "session_London": {
+      "coverage": 0.8909090909090909,
+      "directional_hit": 0.511520737327189
+    },
+    "session_NY": {
+      "coverage": 0.91,
+      "directional_hit": 0.48484848484848486
+    },
+    "session_Other": {
+      "coverage": 0.9444444444444444,
+      "directional_hit": 0.38028169014084506
+    },
+    "regime_high": {
+      "coverage": 0.7788461538461539,
+      "directional_hit": 0.40487804878048783
+    },
+    "regime_low": {
+      "coverage": 0.8686868686868687,
+      "directional_hit": 0.4517766497461929
+    },
+    "regime_normal": {
+      "coverage": 0.9206349206349206,
+      "directional_hit": 0.5264
+    }
+  },
+  "reliability": {
+    "below_10": 0.0444015444015444,
+    "below_50": 1.0,
+    "below_90": 0.9237451737451737
+  }
+}
