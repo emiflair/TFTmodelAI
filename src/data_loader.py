@@ -1,4 +1,4 @@
-"""Data ingestion and cleaning utilities for the EURUSD 15-minute dataset."""
+"""Data ingestion and cleaning utilities for the XAUUSD 15-minute dataset."""
 from __future__ import annotations
 
 from dataclasses import dataclass

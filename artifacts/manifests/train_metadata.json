@@ -6,10 +6,10 @@
       "torch_seed": null
     },
     "data": {
-      "csv_path": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\EURUSD_15M.csv",
+      "csv_path": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\XAUUSD_15M.csv",
       "timezone": "UTC",
       "frequency": "15min",
-      "lookback_bars": 256,
+      "lookback_bars": 128,
       "horizon_bars": 3,
       "min_history_bars": 40000,
       "max_forward_fill_bars": 3,
@@ -28,27 +28,27 @@
       ]
     },
     "windows": {
-      "train_months": 6,
-      "val_months": 2,
+      "train_months": 4,
+      "val_months": 1,
       "test_months": 1,
-      "stride_months": 1
+      "stride_months": 2
     },
     "training": {
-      "hidden_size": 256,
+      "hidden_size": 160,
       "attention_head_size": 4,
-      "dropout": 0.2,
+      "dropout": 0.1,
       "learning_rate": 0.0003,
       "weight_decay": 0.001,
-      "batch_size": 512,
-      "gradient_clip_val": 0.5,
-      "max_epochs": 75,
-      "early_stop_patience": 8,
+      "batch_size": 128,
+      "gradient_clip_val": 0.1,
+      "max_epochs": 30,
+      "early_stop_patience": 7,
       "mixed_precision": true,
       "deterministic": false,
       "fast_dev_run": false,
-      "fast_max_epochs": 75,
-      "fast_max_splits": 10,
-      "fast_batch_size": 512
+      "fast_max_epochs": 30,
+      "fast_max_splits": 1,
+      "fast_batch_size": 128
     },
     "evaluation": {
       "coverage_band": [
@@ -75,7 +75,7 @@
       "manifests_dir": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\manifests",
       "metrics_dir": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\metrics",
       "model_cards_dir": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\model_cards",
-      "latest_symlink": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\checkpoints\\tft_EURUSD_15m_3B_latest.ckpt"
+      "latest_symlink": "C:\\Users\\emife\\OneDrive\\Desktop\\TFTmodel\\artifacts\\checkpoints\\tft_XAUUSD_15m_3B_latest.ckpt"
     },
     "logging": {
       "enable_tensorboard": true,
@@ -88,17 +88,17 @@
     "pytorch": "2.8.0+cpu",
     "pytorch_lightning": "2.5.5",
     "pytorch_forecasting": "1.5.0",
-    "git_commit": "bb55224f6841209dfcdc1e13cf7c2e212da83575"
+    "git_commit": "093099a31a008d4aa81f9f8dcf78e74d85e59a5b"
   },
   "data_summary": {
-    "initial_rows": 439484,
-    "final_rows": 439484,
+    "initial_rows": 42890,
+    "final_rows": 42890,
     "gaps_forward_filled": 0,
-    "gaps_dropped": 191708,
+    "gaps_dropped": 21326,
     "winsorized_columns": [
       "return_1",
       "atr_proxy"
     ]
   },
-  "created_at": "2025-10-13T21:34:50.761795"
+  "created_at": "2025-11-03T15:52:22.865610"
 }

@@ -56,8 +56,21 @@ class RobustScalerStore:
         instance = cls()
         with path.open("rb") as fin:
             data = pickle.load(fin)
-        for col, params in data.items():
-            instance.scalers[col] = FeatureScaler(**params)
+        
+        # Handle both old format (flat dict) and new format (nested with 'scalers' key)
+        if "scalers" in data:
+            # New enhanced format
+            scalers_data = data["scalers"]
+        else:
+            # Old flat format
+            scalers_data = data
+            
+        for col, params in scalers_data.items():
+            # Only use median and iqr for FeatureScaler
+            instance.scalers[col] = FeatureScaler(
+                median=params["median"],
+                iqr=params["iqr"]
+            )
         return instance
 
     def feature_list(self) -> List[str]:

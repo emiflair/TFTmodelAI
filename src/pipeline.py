@@ -20,14 +20,8 @@ from .preprocessing.time_index import add_time_index
 def prepare_base_dataframe(config: ProjectConfig = DEFAULT_CONFIG) -> Tuple[pd.DataFrame, DataLoadSummary, Dict[str, List[str]]]:
     df, summary = load_and_clean_data(config.data)
 
-    # Use simplified features to avoid pandas issues
-    try:
-        from .features.simplified_features_15m import add_15m_features as add_simplified_15m_features
-        df_15m, fifteen_cols = add_simplified_15m_features(df)
-        print("✅ Using simplified enhanced features (more reliable)")
-    except Exception as e:
-        print(f"⚠️  Fallback to original features due to: {e}")
-        df_15m, fifteen_cols = add_15m_features(df)
+    # Use enhanced features
+    df_15m, fifteen_cols = add_15m_features(df)
     hourly_context, hourly_cols = build_hourly_context(df_15m)
     df_full, hourly_attached_cols = attach_completed_hourly_context(df_15m, hourly_context)
 

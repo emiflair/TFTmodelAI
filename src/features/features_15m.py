@@ -29,7 +29,7 @@ def _compute_working_features(df: pd.DataFrame) -> tuple[pd.DataFrame, list]:
     
     # === CORE TECHNICAL INDICATORS ===
     
-    # RSI variants (most important for forex)
+    # RSI variants (most important technical indicator)
     df["rsi14"] = _rsi(df["close"], 14)
     df["rsi7"] = _rsi(df["close"], 7) 
     df["rsi21"] = _rsi(df["close"], 21)
@@ -72,6 +72,19 @@ def _compute_working_features(df: pd.DataFrame) -> tuple[pd.DataFrame, list]:
     df["volume_sma"] = df["tick_volume"].rolling(10).mean()
     df["volume_ratio"] = df["tick_volume"] / df["volume_sma"]
     new_columns.extend(["volume_sma", "volume_ratio"])
+    
+    # === SPREAD ===
+    
+    # Z-score of spread (if spread column exists)
+    if "spread" in df.columns:
+        spread_mean = df["spread"].rolling(20).mean()
+        spread_std = df["spread"].rolling(20).std()
+        df["spread_z"] = (df["spread"] - spread_mean) / (spread_std + 1e-8)
+        new_columns.append("spread_z")
+    else:
+        # If no spread column, create a dummy zero column
+        df["spread_z"] = 0.0
+        new_columns.append("spread_z")
     
     # === MOMENTUM ===
     

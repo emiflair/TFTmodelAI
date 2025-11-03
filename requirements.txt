@@ -1,8 +1,9 @@
 pandas
-numpy<2
+numpy
 scipy
 matplotlib
-pytorch-lightning<2.0
+pytorch-lightning
+torchmetrics
 pytorch-forecasting
 torch
 statsmodels

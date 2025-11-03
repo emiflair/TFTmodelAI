@@ -98,7 +98,8 @@ def calculate_hit_rate_by_regime(df: pd.DataFrame) -> Dict[str, float]:
     
     # Volatility regimes
     for regime in [0, 1, 2]:  # Low, Normal, High volatility
-        regime_data = df[df.get('volatility_regime', 1) == regime]
+        mask = df.get('volatility_regime', pd.Series([1]*len(df))) == regime
+        regime_data = df[mask]
         if len(regime_data) > 0:
             hit_rate = directional_hit_rate(
                 regime_data['target'].values,
@@ -109,7 +110,8 @@ def calculate_hit_rate_by_regime(df: pd.DataFrame) -> Dict[str, float]:
     
     # Market phases
     for phase in [0, 1, 2]:  # Ranging, Trending, Breakout
-        phase_data = df[df.get('market_phase', 0) == phase]
+        mask = df.get('market_phase', pd.Series([0]*len(df))) == phase
+        phase_data = df[mask]
         if len(phase_data) > 0:
             hit_rate = directional_hit_rate(
                 phase_data['target'].values,
@@ -120,7 +122,8 @@ def calculate_hit_rate_by_regime(df: pd.DataFrame) -> Dict[str, float]:
     
     # Session analysis
     for session in ['Asia', 'London', 'NY', 'Other']:
-        session_data = df[df.get('session_label', 'Other') == session]
+        mask = df.get('session_label', pd.Series(['Other']*len(df))) == session
+        session_data = df[mask]
         if len(session_data) > 0:
             hit_rate = directional_hit_rate(
                 session_data['target'].values,
@@ -305,7 +308,8 @@ def regime_performance_analysis(df: pd.DataFrame) -> RegimeAnalysis:
     
     # Volatility regime analysis
     for regime_val, regime_dict in [(0, low_vol), (1, normal_vol), (2, high_vol)]:
-        regime_data = df[df.get('volatility_regime', 1) == regime_val]
+        mask = df.get('volatility_regime', pd.Series([1]*len(df))) == regime_val
+        regime_data = df[mask]
         if len(regime_data) > 0:
             performance = calculate_risk_adjusted_returns(regime_data)
             hit_rate = directional_hit_rate(
@@ -317,7 +321,8 @@ def regime_performance_analysis(df: pd.DataFrame) -> RegimeAnalysis:
     
     # Market phase analysis
     for phase_val, phase_dict in [(1, trending), (0, ranging)]:
-        phase_data = df[df.get('market_phase', 0) == phase_val]
+        mask = df.get('market_phase', pd.Series([0]*len(df))) == phase_val
+        phase_data = df[mask]
         if len(phase_data) > 0:
             performance = calculate_risk_adjusted_returns(phase_data)
             hit_rate = directional_hit_rate(

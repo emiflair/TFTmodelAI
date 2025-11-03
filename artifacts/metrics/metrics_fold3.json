@@ -1,0 +1,74 @@
+{
+  "fold": 3,
+  "split": {
+    "train_start": "2024-05-02T19:00:00+00:00",
+    "train_end": "2024-09-02T19:00:00+00:00",
+    "val_end": "2024-10-02T19:00:00+00:00",
+    "test_end": "2024-11-02T19:00:00+00:00"
+  },
+  "checkpoint": "tft_XAUUSD_15m_3B_20240502_20241102.ckpt",
+  "pinball": {
+    "0.1": 0.024189986288547516,
+    "0.5": 0.004790905863046646,
+    "0.9": 0.035201556980609894
+  },
+  "crps": 0.1283648982644081,
+  "coverage": 0.02055921052631579,
+  "directional_hit": 0.5465787304204451,
+  "pf": {
+    "0.002": 1.0173966371562893,
+    "1x_atr": 1.0173966371562893
+  },
+  "coverage_breakdown": {
+    "session_Other": {
+      "coverage": 0.02055921052631579,
+      "directional_hit": 0.5465787304204451
+    },
+    "regime_normal": {
+      "coverage": 0.02055921052631579,
+      "directional_hit": 0.5465787304204451
+    }
+  },
+  "reliability": {
+    "below_10": 0.0,
+    "below_50": 0.5583881578947368,
+    "below_90": 0.02055921052631579
+  },
+  "risk_metrics": {
+    "total_return": 0.061324428766965866,
+    "mean_return": 5.0431273848516867e-05,
+    "return_volatility": 0.0015091805253177881,
+    "sharpe_ratio": 6.255194387460998,
+    "max_drawdown": -0.06106163188815117,
+    "sortino_ratio": 7.443824749174777,
+    "calmar_ratio": 75.73780822753906,
+    "strategy_return": 0.10555967688560486,
+    "strategy_sharpe": 10.779083065135726,
+    "strategy_max_dd": -0.05333520099520683,
+    "trade_count": 1216,
+    "var_95": -0.0024472372606396675,
+    "var_99": -0.005289618857204914,
+    "cvar_95": -0.004007028881460428
+  },
+  "regime_performance": {
+    "normal_vol": 0.5465787304204451,
+    "ranging": 0.5465787304204451,
+    "session_other": 0.5465787304204451
+  },
+  "consistency": {
+    "hit_rate_stability": 0.06134114929681499,
+    "hit_rate_trend": -0.1499479047567678,
+    "prediction_magnitude_std": 0.008013444021344185,
+    "confidence_width_std": 0.021150419488549232,
+    "confidence_width_mean": 0.20300601422786713
+  },
+  "trading_summary": {
+    "sharpe_ratio": -0.7432436901426737,
+    "max_drawdown": -0.012345736846327782,
+    "win_rate": 0.5894736842105263,
+    "profit_factor": 0.9890149235725403,
+    "total_return": -0.0004667229950428009,
+    "calmar_ratio": -14.624701499938965,
+    "sortino_ratio": -0.852407565183252
+  }
+}

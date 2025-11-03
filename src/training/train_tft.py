@@ -1,4 +1,4 @@
-"""Training orchestration for the EURUSD Temporal Fusion Transformer."""
+"""Training orchestration for the XAUUSD Temporal Fusion Transformer."""
 from __future__ import annotations
 
 import json
@@ -288,13 +288,13 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
         
         scaler = EnhancedScalerStore(default_method="robust")
         scaler.fit(train_df_raw, scale_columns, feature_types=feature_types)
-        scaler_path = config.artifacts.scalers_dir / f"scaler_EURUSD_fold{idx}.pkl"
+        scaler_path = config.artifacts.scalers_dir / f"scaler_XAUUSD_fold{idx}.pkl"
         scaler.save(scaler_path)
         
         # Also save legacy scaler for compatibility
         legacy_scaler = RobustScalerStore()
         legacy_scaler.fit(train_df_raw, scale_columns)
-        legacy_scaler_path = config.artifacts.scalers_dir / f"legacy_scaler_EURUSD_fold{idx}.pkl"
+        legacy_scaler_path = config.artifacts.scalers_dir / f"legacy_scaler_XAUUSD_fold{idx}.pkl"
         legacy_scaler.save(legacy_scaler_path)
 
         train_df = train_df_raw.copy()
@@ -326,7 +326,7 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
 
         train_dl, val_dl = _build_dataloaders(training_ds, validation_ds, runtime_params["batch_size"])
 
-        checkpoint_name = f"tft_EURUSD_15m_3B_{split.train_start:%Y%m%d}_{split.test_end:%Y%m%d}"
+        checkpoint_name = f"tft_XAUUSD_15m_3B_{split.train_start:%Y%m%d}_{split.test_end:%Y%m%d}"
         checkpoint_callback = ModelCheckpoint(
             dirpath=config.artifacts.checkpoint_dir,
             filename=checkpoint_name,
@@ -374,7 +374,7 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             # Advanced training optimizations
             accumulate_grad_batches=2,  # Gradient accumulation for larger effective batch size
             val_check_interval=0.25,    # More frequent validation checks
-            num_sanity_val_steps=2,     # Sanity check validation
+            num_sanity_val_steps=0,     # Disable sanity check to avoid hanging
             profiler="simple",          # Enable profiling for performance monitoring
             enable_checkpointing=True,  # Enable automatic checkpointing
         )
@@ -564,7 +564,7 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
         model_card = config.artifacts.model_cards_dir / "model_card.txt"
         card_lines = [
             "Model: Temporal Fusion Transformer",
-            "Pair: EURUSD",
+            "Pair: XAUUSD",
             f"Data range: {data_range[0]} — {data_range[1]}",
             f"Lookback: {config.data.lookback_bars} bars",
             f"Horizon: {config.data.horizon_bars} bars",
@@ -595,7 +595,7 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
         )
         model_card.write_text("\n".join(card_lines))
 
-        checkpoints = sorted(config.artifacts.checkpoint_dir.glob("tft_EURUSD_15m_3B_*.ckpt"))
+        checkpoints = sorted(config.artifacts.checkpoint_dir.glob("tft_XAUUSD_15m_3B_*.ckpt"))
         if checkpoints:
             latest = checkpoints[-1]
             _refresh_symlink(config.artifacts.latest_symlink, latest.name)

@@ -1,0 +1,74 @@
+{
+  "fold": 8,
+  "split": {
+    "train_start": "2021-03-02T19:00:00+00:00",
+    "train_end": "2021-07-02T19:00:00+00:00",
+    "val_end": "2021-08-02T19:00:00+00:00",
+    "test_end": "2021-09-02T19:00:00+00:00"
+  },
+  "checkpoint": "tft_XAUUSD_15m_3B_20210302_20210902.ckpt",
+  "pinball": {
+    "0.1": 0.010229278355836868,
+    "0.5": 0.04392248019576073,
+    "0.9": 0.012607398442924023
+  },
+  "crps": 0.13351831398904324,
+  "coverage": 0.6118012422360248,
+  "directional_hit": 0.4898753894080997,
+  "pf": {
+    "0.002": NaN,
+    "1x_atr": NaN
+  },
+  "coverage_breakdown": {
+    "session_Other": {
+      "coverage": 0.6118012422360248,
+      "directional_hit": 0.4898753894080997
+    },
+    "regime_normal": {
+      "coverage": 0.6118012422360248,
+      "directional_hit": 0.4898753894080997
+    }
+  },
+  "reliability": {
+    "below_10": 0.0,
+    "below_50": 0.9666149068322981,
+    "below_90": 0.6118012422360248
+  },
+  "risk_metrics": {
+    "total_return": -0.06752770394086838,
+    "mean_return": -5.242834231466986e-05,
+    "return_volatility": 0.0016361372545361519,
+    "sharpe_ratio": -5.998303426127741,
+    "max_drawdown": -0.1576661616563797,
+    "sortino_ratio": -6.326692261353809,
+    "calmar_ratio": -5.378754138946533,
+    "strategy_return": -0.07191848009824753,
+    "strategy_sharpe": -6.388764940049749,
+    "strategy_max_dd": -0.1576661616563797,
+    "trade_count": 1288,
+    "var_95": -0.0020805937238037586,
+    "var_99": -0.00454366859048605,
+    "cvar_95": -0.004311056807637215
+  },
+  "regime_performance": {
+    "normal_vol": 0.4898753894080997,
+    "ranging": 0.4898753894080997,
+    "session_other": 0.4898753894080997
+  },
+  "consistency": {
+    "hit_rate_stability": 0.09471730650720395,
+    "hit_rate_trend": 0.12887262176082975,
+    "prediction_magnitude_std": 0.04182523116469383,
+    "confidence_width_std": 0.020370861515402794,
+    "confidence_width_mean": 0.1103585734963417
+  },
+  "trading_summary": {
+    "sharpe_ratio": -30.615354734095085,
+    "max_drawdown": -0.08975610882043839,
+    "win_rate": 0.40487804878048783,
+    "profit_factor": 0.5466089248657227,
+    "total_return": -0.06701823323965073,
+    "calmar_ratio": -11.141193389892578,
+    "sortino_ratio": -29.431079933878767
+  }
+}

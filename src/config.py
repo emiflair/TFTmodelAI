@@ -1,4 +1,4 @@
-"""Project-level configuration data structures for the EURUSD TFT pipeline."""
+"""Project-level configuration data structures for the XAUUSD TFT pipeline."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -7,7 +7,7 @@ from typing import Optional, Sequence
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DATA_PATH = PROJECT_ROOT / "EURUSD_15M.csv"
+DATA_PATH = PROJECT_ROOT / "XAUUSD_15M.csv"
 ARTIFACT_ROOT = PROJECT_ROOT / "artifacts"
 
 
@@ -23,7 +23,7 @@ class DataConfig:
     csv_path: Path = DATA_PATH
     timezone: str = "UTC"
     frequency: str = "15min"
-    lookback_bars: int = 256
+    lookback_bars: int = 128      # Reduced from 256 for faster processing
     horizon_bars: int = 3
     min_history_bars: int = 40_000
     max_forward_fill_bars: int = 3
@@ -42,29 +42,29 @@ class QuantileConfig:
 
 @dataclass
 class TrainingWindowConfig:
-    train_months: int = 6  # Increased for more training data
-    val_months: int = 2    # Better validation with more data
+    train_months: int = 4  # Reduced for faster training
+    val_months: int = 1    # Reduced validation period
     test_months: int = 1   # Keep test period
-    stride_months: int = 1
+    stride_months: int = 2  # Larger stride = fewer folds
 
 
 @dataclass
 class TrainingConfig:
-    hidden_size: int = 256           # Doubled model capacity
-    attention_head_size: int = 4     # More attention heads
-    dropout: float = 0.2             # Increased regularization
-    learning_rate: float = 3e-4      # Lower learning rate for stability
-    weight_decay: float = 1e-3       # Stronger L2 regularization
-    batch_size: int = 512            # Larger batches for better gradients
-    gradient_clip_val: float = 0.5   # Tighter gradient clipping
-    max_epochs: int = 75             # Much longer training
-    early_stop_patience: int = 8     # More patience for convergence
-    mixed_precision: bool = True     # Enable mixed precision
-    deterministic: bool = False      # Allow non-deterministic for speed
+    hidden_size: int = 160           # Larger model for better predictions
+    attention_head_size: int = 4     # Standard attention heads
+    dropout: float = 0.1             # Less dropout for better learning
+    learning_rate: float = 3e-4      # Lower LR for stable convergence
+    weight_decay: float = 1e-3       # Keep L2 regularization
+    batch_size: int = 128            # Smaller batch for better gradients
+    gradient_clip_val: float = 0.1   # Tighter gradient clipping
+    max_epochs: int = 30             # More epochs for convergence
+    early_stop_patience: int = 7     # More patience
+    mixed_precision: bool = True     # Keep mixed precision for speed
+    deterministic: bool = False      # Non-deterministic is faster
     fast_dev_run: bool = False       # PRODUCTION MODE
-    fast_max_epochs: int = 75        # Full epochs even in fast mode
-    fast_max_splits: int = 10        # Allow more splits
-    fast_batch_size: Optional[int] = 512
+    fast_max_epochs: int = 30        # Match max_epochs
+    fast_max_splits: int = 1         # ONLY 1 FOLD for speed
+    fast_batch_size: Optional[int] = 128   # Match batch size
 
 
 @dataclass
@@ -89,7 +89,7 @@ class ArtifactPaths:
     manifests_dir: Path = ARTIFACT_ROOT / "manifests"
     metrics_dir: Path = ARTIFACT_ROOT / "metrics"
     model_cards_dir: Path = ARTIFACT_ROOT / "model_cards"
-    latest_symlink: Path = ARTIFACT_ROOT / "checkpoints" / "tft_EURUSD_15m_3B_latest.ckpt"
+    latest_symlink: Path = ARTIFACT_ROOT / "checkpoints" / "tft_XAUUSD_15m_3B_latest.ckpt"
 
 
 @dataclass
