@@ -2,7 +2,7 @@ pandas
 numpy
 scipy
 matplotlib
-pytorch-lightning
+lightning
 torchmetrics
 pytorch-forecasting
 torch

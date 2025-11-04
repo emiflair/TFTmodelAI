@@ -22,8 +22,8 @@ import argparse
 
 import numpy as np
 import pandas as pd
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+import lightning.pytorch as pl
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 import pytorch_forecasting as pf
 from pytorch_forecasting import TemporalFusionTransformer
 from pytorch_forecasting.metrics import QuantileLoss
