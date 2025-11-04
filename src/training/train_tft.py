@@ -414,8 +414,11 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
         precision_setting = _select_precision(config)
 
         # Disable automatic prediction plotting to avoid matplotlib bfloat16 errors
-        # (metrics are still logged; we evaluate manually at the end of each split)
-        model.log_prediction_interval = 0  # Never log predictions to tensorboard during training
+        # Override the log_prediction method to prevent plotting during training/validation
+        original_log_prediction = model.log_prediction
+        def _no_op_log_prediction(*args, **kwargs):
+            pass  # Do nothing - skip all prediction plotting
+        model.log_prediction = _no_op_log_prediction
 
         # Enhanced trainer with advanced optimizations
         trainer = pl.Trainer(
