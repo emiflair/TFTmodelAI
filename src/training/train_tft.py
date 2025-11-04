@@ -413,6 +413,10 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
 
         precision_setting = _select_precision(config)
 
+        # Disable automatic prediction plotting to avoid matplotlib bfloat16 errors
+        # (metrics are still logged; we evaluate manually at the end of each split)
+        model.log_prediction_interval = 0  # Never log predictions to tensorboard during training
+
         # Enhanced trainer with advanced optimizations
         trainer = pl.Trainer(
             max_epochs=runtime_params["max_epochs"],
