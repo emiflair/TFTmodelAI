@@ -88,6 +88,22 @@ Monthly or when adding new data:
 .\run_training.ps1
 ```
 
+## 🧭 Train on Google Colab (GPU)
+
+If you prefer training in Google Colab with a free GPU:
+
+1) Upload this project folder to Google Drive, e.g., `MyDrive/TFTmodelAI` and ensure `XAUUSD_15M.csv` is in the project root.
+
+2) Open the notebook `colab_train_tft.ipynb` in Colab and run all cells:
+
+     - It will mount Drive, install dependencies, verify the setup, and launch training.
+     - Artifacts (checkpoints, scalers, metrics, manifests) are saved under `artifacts/` in your Drive folder.
+
+Notes:
+- In Colab: Runtime → Change runtime type → Hardware accelerator: GPU
+- If pip shows conflicts, restart the runtime and re-run from the install cell.
+- If no GPU is detected, re-check the runtime setting.
+
 ## 📁 Project Structure
 
 ```

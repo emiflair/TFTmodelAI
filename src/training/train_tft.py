@@ -1,4 +1,15 @@
-"""Training orchestration for the XAUUSD Temporal Fusion Transformer."""
+"""Training orchestration for the XAUUSD Temporal Fusion Transformer.
+
+Adds CLI flags for Colab usage and long training sessions:
+    - --resume {none,last,<path>}  Resume from last/explicit checkpoint
+    - --max-epochs INT             Override max epochs
+    - --batch-size INT             Override batch size
+    - --hidden-size INT            Override model size
+    - --learning-rate FLOAT        Override learning rate
+    - --splits INT                 Limit number of walk-forward splits
+    - --fast-dev-run               Enable faster dev run (limits epochs/splits)
+    - --train-months/--val-months/--test-months/--stride-months
+"""
 from __future__ import annotations
 
 import json
@@ -7,6 +18,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -333,6 +345,7 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             monitor="val_loss",
             mode="min",
             save_top_k=1,
+            save_last=True,
         )
         early_stop = EarlyStopping(
             monitor="val_loss",
@@ -379,7 +392,8 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             enable_checkpointing=True,  # Enable automatic checkpointing
         )
 
-        trainer.fit(model, train_dl, val_dl)
+    # Fit model (ckpt resume handled in CLI wrapper)
+    trainer.fit(model, train_dl, val_dl)
 
         best_path = Path(checkpoint_callback.best_model_path)
         if not best_path.exists():
@@ -605,5 +619,108 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             _refresh_symlink(config.artifacts.checkpoint_dir / "tft_fast.ckpt", fast_target.name)
 
 
+def _apply_overrides_from_args(cfg: ProjectConfig, args: argparse.Namespace) -> ProjectConfig:
+    # Training core overrides
+    if args.max_epochs is not None:
+        cfg.training.max_epochs = int(args.max_epochs)
+        cfg.training.fast_max_epochs = max(cfg.training.fast_max_epochs, cfg.training.max_epochs)
+    if args.batch_size is not None:
+        cfg.training.batch_size = int(args.batch_size)
+    if args.hidden_size is not None:
+        cfg.training.hidden_size = int(args.hidden_size)
+    if args.learning_rate is not None:
+        cfg.training.learning_rate = float(args.learning_rate)
+    if args.splits is not None:
+        cfg.training.fast_max_splits = int(args.splits)
+    if args.fast_dev_run:
+        cfg.training.fast_dev_run = True
+
+    # Walk-forward window overrides
+    if args.train_months is not None:
+        cfg.windows.train_months = int(args.train_months)
+    if args.val_months is not None:
+        cfg.windows.val_months = int(args.val_months)
+    if args.test_months is not None:
+        cfg.windows.test_months = int(args.test_months)
+    if args.stride_months is not None:
+        cfg.windows.stride_months = int(args.stride_months)
+
+    return cfg
+
+
+def _parse_args(argv: List[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Train TFT model with optional overrides and resume support")
+    parser.add_argument("--resume", default="none", help="none | last | /path/to/checkpoint.ckpt")
+    parser.add_argument("--max-epochs", type=int, default=None)
+    parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--hidden-size", type=int, default=None)
+    parser.add_argument("--learning-rate", type=float, default=None)
+    parser.add_argument("--splits", type=int, default=None, help="limit number of walk-forward splits")
+    parser.add_argument("--fast-dev-run", action="store_true")
+    parser.add_argument("--train-months", type=int, default=None)
+    parser.add_argument("--val-months", type=int, default=None)
+    parser.add_argument("--test-months", type=int, default=None)
+    parser.add_argument("--stride-months", type=int, default=None)
+    return parser.parse_args(argv)
+
+
+def main(argv: List[str] | None = None) -> None:  # pragma: no cover
+    args = _parse_args(argv if argv is not None else sys.argv[1:])
+    cfg = _apply_overrides_from_args(DEFAULT_CONFIG, args)
+
+    # Build everything up to trainer instantiation so we can pass resume ckpt
+    ensure_artifact_dirs(cfg.artifacts)
+
+    # Run the full training pipeline with resume support by monkey-patching fit call.
+    # We reuse train_tft_model but intercept the call to Trainer.fit via a small wrapper.
+
+    # Since train_tft_model constructs and calls trainer.fit internally, we emulate resume
+    # by setting a global env var that lightning honors (ckpt_path) is only accepted by fit.
+    # Instead, we re-run training but allow PL to pick up last checkpoint automatically via
+    # save_last=True and specifying ckpt_path below when possible.
+
+    # Simpler approach: call the same code path but override pl.Trainer.fit at runtime is invasive;
+    # we instead duplicate a tiny part: construct trainer here and pass ckpt_path.
+
+    # For maintainability, we fall back to standard path and when resuming, we call fit again
+    # with ckpt_path through a minimal inline patch: re-run the function after setting an env flag.
+
+    # Use a dedicated flag the function reads for resume (simple contract to avoid refactor)
+    os_environ_resume = None
+    if args.resume and args.resume.lower() != "none":
+        os_environ_resume = args.resume
+
+    # Monkey: store in global for trainer.fit usage via closure; fallback to inside function call
+    global _RESUME_CKPT_PATH
+    _RESUME_CKPT_PATH = os_environ_resume  # consumed inside train_tft_model via trainer.fit patch below
+
+    # Patch: redefine Trainer.fit within this module scope to inject ckpt_path on first call
+    original_fit = pl.Trainer.fit
+
+    def patched_fit(self, *fit_args, **fit_kwargs):
+        ckpt_path = None
+        if isinstance(_RESUME_CKPT_PATH, str):
+            if _RESUME_CKPT_PATH.lower() == "last":
+                ckpt_path = "last"
+            else:
+                cp = Path(_RESUME_CKPT_PATH)
+                if cp.exists():
+                    ckpt_path = str(cp)
+        # Only inject if not already provided
+        if "ckpt_path" not in fit_kwargs and ckpt_path is not None:
+            fit_kwargs["ckpt_path"] = ckpt_path
+            print(f"[resume] Resuming from ckpt_path={ckpt_path}")
+        try:
+            return original_fit(self, *fit_args, **fit_kwargs)
+        finally:
+            # one-shot patch; restore after first use
+            pl.Trainer.fit = original_fit
+
+    pl.Trainer.fit = patched_fit
+
+    # Execute training
+    train_tft_model(cfg)
+
+
 if __name__ == "__main__":  # pragma: no cover
-    train_tft_model()
+    main()

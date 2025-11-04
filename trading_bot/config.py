@@ -22,9 +22,8 @@ MODEL_CONFIG = {
     'symbol': 'XAUUSD',
     'timeframe': '15m',
     
-    # Model paths - Use latest checkpoint (Sep 2024 - Mar 2025)
-    # This checkpoint was trained yesterday (Nov 3, 2025)
-    'checkpoint_path': CHECKPOINTS_DIR / "tft_XAUUSD_15m_3B_20240902_20250302.ckpt",
+    # Model paths - set to None to auto-detect latest after training
+    'checkpoint_path': None,
     'scaler_path': None,      # Let it auto-detect the matching scaler
     'manifest_path': MANIFESTS_DIR / "feature_manifest.json",
     
@@ -221,12 +220,28 @@ def validate_config():
         if manifest is None:
             errors.append("No feature manifest found")
     
-    # Check risk settings
-    if RISK_CONFIG['max_risk_per_trade'] > RISK_CONFIG['max_daily_risk']:
-        errors.append("max_risk_per_trade cannot exceed max_daily_risk")
+    # Check risk settings (keys present in RISK_CONFIG)
+    if RISK_CONFIG.get('account_balance', 0) <= 0:
+        errors.append("account_balance must be > 0")
     
-    if RISK_CONFIG['min_reward_risk'] < 1.0:
-        errors.append("min_reward_risk should be >= 1.0")
+    for key in ['max_daily_loss', 'max_daily_profit']:
+        val = RISK_CONFIG.get(key)
+        if val is None or val <= 0 or val > 100:
+            errors.append(f"{key} must be within (0, 100]")
+    
+    if RISK_CONFIG.get('max_open_positions', 0) < 1:
+        errors.append("max_open_positions must be >= 1")
+    if RISK_CONFIG.get('max_leverage', 0) <= 0:
+        errors.append("max_leverage must be > 0")
+    if RISK_CONFIG.get('max_spread_pips', 0) <= 0:
+        errors.append("max_spread_pips must be > 0")
+    if RISK_CONFIG.get('slippage_tolerance_pips', -1) < 0:
+        errors.append("slippage_tolerance_pips must be >= 0")
+    
+    # Reward:Risk tiers should be positive
+    for key in ['rr_defensive', 'rr_normal', 'rr_strong', 'rr_high']:
+        if RISK_CONFIG.get(key, 0) <= 0:
+            errors.append(f"{key} must be > 0")
     
     # Check strategy settings
     if STRATEGY_CONFIG['min_confidence'] < 0 or STRATEGY_CONFIG['min_confidence'] > 1:
@@ -234,6 +249,8 @@ def validate_config():
     
     if STRATEGY_CONFIG['min_move_pct'] < 0:
         errors.append("min_move_pct must be positive")
+    if STRATEGY_CONFIG.get('min_reward_risk', 0) <= 0:
+        errors.append("strategy.min_reward_risk must be > 0")
     
     # Return validation result
     if errors:
@@ -270,11 +287,13 @@ def print_config():
     print(f"  Time Filter: {STRATEGY_CONFIG['use_time_filter']} ({STRATEGY_CONFIG['allowed_hours']})")
     
     print("\n[RISK MANAGEMENT]")
-    print(f"  Risk per Trade: {RISK_CONFIG['max_risk_per_trade']}%")
-    print(f"  Daily Risk Limit: {RISK_CONFIG['max_daily_risk']}%")
+    print(f"  Account Balance: ${RISK_CONFIG['account_balance']:.2f}")
+    print(f"  Max Daily Loss: {RISK_CONFIG['max_daily_loss']}%")
+    print(f"  Max Daily Profit: {RISK_CONFIG['max_daily_profit']}%")
     print(f"  Max Positions: {RISK_CONFIG['max_open_positions']}")
     print(f"  Max Leverage: {RISK_CONFIG['max_leverage']}x")
-    print(f"  Min R:R: {RISK_CONFIG['min_reward_risk']}")
+    print(f"  Same Direction Only: {RISK_CONFIG['same_direction_only']}")
+    print(f"  RR Tiers: defensive={RISK_CONFIG['rr_defensive']}, normal={RISK_CONFIG['rr_normal']}, strong={RISK_CONFIG['rr_strong']}, high={RISK_CONFIG['rr_high']}")
     
     print("\n[MT5]")
     print(f"  Symbol: {MT5_CONFIG['symbol']}")
