@@ -382,11 +382,11 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             loss=loss,
             weight_decay=config.training.weight_decay,
             log_interval=10,
-            reduce_on_plateau_patience=4,  # Increased patience
-            # Enhanced architecture parameters
-            lstm_layers=3,  # Additional LSTM layers for more capacity
-            hidden_continuous_size=config.training.hidden_size // 2,  # Continuous variable processing
-            output_size=len(config.quantiles.quantiles),  # Explicit output size
+            reduce_on_plateau_patience=4,
+            # Memory-optimized architecture
+            lstm_layers=2,  # Reduced from 3 to save memory
+            hidden_continuous_size=config.training.hidden_size // 2,
+            output_size=len(config.quantiles.quantiles),
         )
 
         # Choose precision robustly: prefer bf16 on Ampere+ GPUs; avoid fp16 on T4 to prevent overflow
@@ -420,22 +420,21 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             pass  # Do nothing - skip all prediction plotting
         model.log_prediction = _no_op_log_prediction
 
-        # Enhanced trainer with advanced optimizations
+        # Enhanced trainer with memory-efficient settings for Colab
         trainer = pl.Trainer(
             max_epochs=runtime_params["max_epochs"],
             gradient_clip_val=config.training.gradient_clip_val,
             callbacks=[early_stop, checkpoint_callback],
             deterministic=config.training.deterministic,
             enable_progress_bar=True,
-            enable_model_summary=True,  # Enable model summary for debugging
+            enable_model_summary=True,
             precision=precision_setting,
             log_every_n_steps=config.logging.log_every_n_steps,
-            # Advanced training optimizations
-            accumulate_grad_batches=2,  # Gradient accumulation for larger effective batch size
-            val_check_interval=0.25,    # More frequent validation checks
-            num_sanity_val_steps=0,     # Disable sanity check to avoid hanging
-            profiler="simple",          # Enable profiling for performance monitoring
-            enable_checkpointing=True,  # Enable automatic checkpointing
+            # Memory-optimized settings for GPU training
+            accumulate_grad_batches=1,  # Reduced from 2 to save memory
+            val_check_interval=1.0,     # Validate once per epoch to reduce memory pressure
+            num_sanity_val_steps=0,
+            enable_checkpointing=True,
         )
 
         # Fit model (ckpt resume handled in CLI wrapper)

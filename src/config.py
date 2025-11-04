@@ -52,23 +52,23 @@ class TrainingWindowConfig:
 
 @dataclass
 class TrainingConfig:
-    # PRODUCTION-GRADE MODEL SETTINGS
-    # Larger capacity for complex patterns, but well-regularized
-    hidden_size: int = 256           # Increased from 160 - more capacity
+    # MEMORY-OPTIMIZED SETTINGS FOR GPU TRAINING (T4/L4/A100)
+    # Balanced for performance and memory efficiency
+    hidden_size: int = 160           # Reduced from 256 to fit GPU memory
     attention_head_size: int = 4     # Standard attention heads
     dropout: float = 0.15            # Increased dropout to prevent overfitting
     learning_rate: float = 2e-4      # Slightly lower for stable learning
     weight_decay: float = 1e-3       # L2 regularization
-    batch_size: int = 128            # Good batch size for stable gradients
+    batch_size: int = 64             # Reduced from 128 for memory efficiency
     gradient_clip_val: float = 0.1   # Prevent gradient explosions
     max_epochs: int = 40             # More epochs for better convergence
     early_stop_patience: int = 8     # Stop if no improvement for 8 epochs
-    mixed_precision: bool = True     # Fast training with FP16
+    mixed_precision: bool = True     # Fast training with BF16/FP32
     deterministic: bool = False      # Non-deterministic is faster
     fast_dev_run: bool = False       # PRODUCTION MODE
     fast_max_epochs: int = 40        # Match max_epochs
     fast_max_splits: int = 3         # Train 3 folds for robustness
-    fast_batch_size: Optional[int] = 128
+    fast_batch_size: Optional[int] = 64  # Memory-efficient batch size
 
 
 @dataclass
