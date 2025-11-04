@@ -46,7 +46,7 @@ class TrainingWindowConfig:
     train_months: int = 9   # Increased from 6 for more context
     val_months: int = 1     # 1 month validation
     test_months: int = 1    # 1 month test
-    stride_months: int = 2  # More frequent updates (2-month stride)
+    stride_months: int = 1  # 1-month stride for 8 folds (was 2)
 
 
 @dataclass
