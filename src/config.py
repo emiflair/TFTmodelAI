@@ -42,29 +42,33 @@ class QuantileConfig:
 
 @dataclass
 class TrainingWindowConfig:
-    train_months: int = 4  # Reduced for faster training
-    val_months: int = 1    # Reduced validation period
-    test_months: int = 1   # Keep test period
-    stride_months: int = 2  # Larger stride = fewer folds
+    # ROBUST TRAINING: Use 6 months training + 1 month val + 1 month test
+    # This gives model more data to learn from while still being recent
+    train_months: int = 6   # 6 months of recent market data
+    val_months: int = 1     # 1 month validation
+    test_months: int = 1    # 1 month test
+    stride_months: int = 3  # 3-month stride = ~3 folds covering last year
 
 
 @dataclass
 class TrainingConfig:
-    hidden_size: int = 160           # Larger model for better predictions
+    # PRODUCTION-GRADE MODEL SETTINGS
+    # Larger capacity for complex patterns, but well-regularized
+    hidden_size: int = 256           # Increased from 160 - more capacity
     attention_head_size: int = 4     # Standard attention heads
-    dropout: float = 0.1             # Less dropout for better learning
-    learning_rate: float = 3e-4      # Lower LR for stable convergence
-    weight_decay: float = 1e-3       # Keep L2 regularization
-    batch_size: int = 128            # Smaller batch for better gradients
-    gradient_clip_val: float = 0.1   # Tighter gradient clipping
-    max_epochs: int = 30             # More epochs for convergence
-    early_stop_patience: int = 7     # More patience
-    mixed_precision: bool = True     # Keep mixed precision for speed
+    dropout: float = 0.15            # Increased dropout to prevent overfitting
+    learning_rate: float = 2e-4      # Slightly lower for stable learning
+    weight_decay: float = 1e-3       # L2 regularization
+    batch_size: int = 128            # Good batch size for stable gradients
+    gradient_clip_val: float = 0.1   # Prevent gradient explosions
+    max_epochs: int = 40             # More epochs for better convergence
+    early_stop_patience: int = 8     # Stop if no improvement for 8 epochs
+    mixed_precision: bool = True     # Fast training with FP16
     deterministic: bool = False      # Non-deterministic is faster
     fast_dev_run: bool = False       # PRODUCTION MODE
-    fast_max_epochs: int = 30        # Match max_epochs
-    fast_max_splits: int = 1         # ONLY 1 FOLD for speed
-    fast_batch_size: Optional[int] = 128   # Match batch size
+    fast_max_epochs: int = 40        # Match max_epochs
+    fast_max_splits: int = 3         # Train 3 folds for robustness
+    fast_batch_size: Optional[int] = 128
 
 
 @dataclass

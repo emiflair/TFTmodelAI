@@ -122,13 +122,14 @@ class RiskManager:
     def is_trading_hours_valid(self) -> Dict:
         """
         Check if current time is within valid trading hours
-        Skips first 2 hours after market open and last 1 hour before close
+        Skips first 2 hours and last 1 hour of EACH DAY to avoid volatile periods
         
-        Gold/Forex Market Hours (GMT):
-        - Opens: Sunday 23:00 GMT
-        - Closes: Friday 22:00 GMT
-        - Avoid: Sunday 23:00 - Monday 01:00 (first 2 hours)
-        - Avoid: Friday 21:00 - 22:00 (last 1 hour)
+        Gold/Forex Market Hours (24/5):
+        - Market open: Sunday 23:00 GMT - Friday 22:00 GMT
+        - DAILY avoid windows (every day):
+          * 00:00-01:59 GMT: First 2 hours (low liquidity/high volatility)
+          * 23:00-23:59 GMT: Last 1 hour (low liquidity)
+        - Weekend: No trading Saturday/Sunday (until 23:00)
         
         Returns:
             Dict with 'ok': bool, 'reason': str
@@ -142,40 +143,45 @@ class RiskManager:
         if current_day == 5:  # Saturday - Full day closed
             return {
                 'ok': False,
-                'reason': "MARKET CLOSED - WAIT FOR MARKET TO OPEN (Saturday)"
+                'reason': "MARKET CLOSED - Weekend (Saturday)"
             }
         
         if current_day == 6:  # Sunday - Opens at 23:00
             if current_hour < 23:
                 return {
                     'ok': False,
-                    'reason': "MARKET CLOSED - WAIT FOR MARKET TO OPEN (Sunday before 23:00)"
+                    'reason': "MARKET CLOSED - Weekend (Sunday before 23:00)"
                 }
-            # Sunday 23:00+ is market open, but we skip first 2 hours
-            # So we need to wait until Monday 01:00
-            # This means NO trading on Sunday at all
+            # Sunday 23:00+ would start new trading day, but we skip last hour
             return {
                 'ok': False,
-                'reason': "MARKET CLOSED - WAIT FOR MARKET TO OPEN (2 hours after Sunday open)"
+                'reason': "VOLATILE PERIOD - Last hour of day (23:00-23:59)"
             }
         
-        # Monday - Skip first 2 hours after Sunday open (avoid 00:00-00:59)
-        if current_day == 0:  # Monday
-            if current_hour == 0:  # Midnight hour (00:00-00:59)
-                return {
-                    'ok': False,
-                    'reason': "MARKET CLOSED - WAIT FOR MARKET TO OPEN (2 hours after market open)"
-                }
+        # DAILY TIME RESTRICTIONS (applies every weekday Monday-Friday)
+        # Skip first 2 hours: 00:00-01:59
+        if current_hour <= 1:
+            return {
+                'ok': False,
+                'reason': f"VOLATILE PERIOD - First 2 hours of day (00:00-01:59, now: {current_hour:02d}:{current_minute:02d})"
+            }
         
-        # Friday - Stop 1 hour before close (avoid 21:00+)
+        # Skip last 1 hour: 23:00-23:59
+        if current_hour >= 23:
+            return {
+                'ok': False,
+                'reason': f"VOLATILE PERIOD - Last hour of day (23:00-23:59, now: {current_hour:02d}:{current_minute:02d})"
+            }
+        
+        # Friday special case - close earlier (no trading after 21:00)
         if current_day == 4:  # Friday
-            if current_hour >= 21:  # 21:00 onwards
+            if current_hour >= 21:
                 return {
                     'ok': False,
-                    'reason': "MARKET CLOSED - WAIT FOR MARKET TO OPEN (1 hour before Friday close)"
+                    'reason': "MARKET CLOSING - Friday after 21:00 (market closes at 22:00)"
                 }
         
-        # All other times are valid
+        # All other times are valid (02:00-22:59 on weekdays)
         return {'ok': True, 'reason': 'Trading hours valid'}
     
     def get_dynamic_risk_percent(self, confidence: float) -> float:
@@ -628,7 +634,7 @@ class RiskManager:
         prediction: Dict
     ) -> Dict:
         """
-        Determine if an open position should be closed
+        Determine if an open position should be closed with STRICT REVERSAL VERIFICATION
         
         Args:
             position: Open position details
@@ -643,97 +649,120 @@ class RiskManager:
             }
         """
         pos_type = position['type']
-        entry_price = position['price_open']
-        sl = position['sl']
-        tp = position['tp']
-        profit = position['profit']
-        
-        # Check if prediction changed direction - SMART EXIT LOGIC
+        profit = position.get('profit', 0)
         pred_direction = prediction.get('direction', 'NEUTRAL')
         pred_confidence = prediction.get('confidence', 0)
+        predicted_move = abs(prediction.get('move_pct', 0))
         
-        # Only close on reversal if trade is losing or has small profit
-        if pos_type == 'BUY' and pred_direction == 'DOWN':
-            # Cut losses immediately
-            if profit < 0:
-                return {
-                    'should_close': True,
-                    'reason': f"Prediction reversed to DOWN (cutting loss: ${profit:.2f})"
-                }
-            # Close small winners with low confidence
-            elif profit < 100 and pred_confidence >= 0.65:
-                return {
-                    'should_close': True,
-                    'reason': f"Prediction reversed to DOWN (small profit: ${profit:.2f}, conf: {pred_confidence:.2f})"
-                }
-            # Keep large winners - let TP/SL work
-            else:
-                return {
-                    'should_close': False,
-                    'reason': f"Keeping winner despite reversal (profit: ${profit:.2f})"
-                }
+        # Layer 1: Direction check
+        is_opposite_direction = (
+            (pos_type == 'BUY' and pred_direction == 'DOWN') or
+            (pos_type == 'SELL' and pred_direction == 'UP')
+        )
         
-        if pos_type == 'SELL' and pred_direction == 'UP':
-            # Cut losses immediately
-            if profit < 0:
-                return {
-                    'should_close': True,
-                    'reason': f"Prediction reversed to UP (cutting loss: ${profit:.2f})"
-                }
-            # Close small winners with low confidence
-            elif profit < 100 and pred_confidence >= 0.65:
-                return {
-                    'should_close': True,
-                    'reason': f"Prediction reversed to UP (small profit: ${profit:.2f}, conf: {pred_confidence:.2f})"
-                }
-            # Keep large winners - let TP/SL work
-            else:
-                return {
-                    'should_close': False,
-                    'reason': f"Keeping winner despite reversal (profit: ${profit:.2f})"
-                }
-        
-        # Check if profit target partially hit (can trail stop)
-        if tp and pos_type == 'BUY':
-            target_move = tp - entry_price
-            current_move = current_price - entry_price
-            if current_move > target_move * 0.75:  # 75% to target
-                return {
-                    'should_close': False,  # Don't close, but could trail SL
-                    'reason': "Near profit target (trail stop)"
-                }
-        
-        if tp and pos_type == 'SELL':
-            target_move = entry_price - tp
-            current_move = entry_price - current_price
-            if current_move > target_move * 0.75:
-                return {
-                    'should_close': False,
-                    'reason': "Near profit target (trail stop)"
-                }
-        
-        # Check prediction confidence loss
-        if prediction.get('confidence', 1.0) < 0.70:
+        if not is_opposite_direction:
             return {
-                'should_close': True,
-                'reason': "Prediction confidence dropped below 70%"
+                'should_close': False,
+                'reason': "Prediction aligns with position"
             }
         
-        # Hold position
+        # CRITICAL PROTECTION RULES
+        
+        # Rule 1: NEVER close big winners ($200+)
+        if profit >= 200:
+            self.logger.info(f"BIG WINNER ${profit:.2f} - PROTECTED from reversal (conf: {pred_confidence:.2f})")
+            return {
+                'should_close': False,
+                'reason': f"BIG WINNER ${profit:.2f} - PROTECTED"
+            }
+        
+        # Rule 2: ALWAYS close losses
+        if profit < 0:
+            return {
+                'should_close': True,
+                'reason': f"Cutting loss ${profit:.2f} on reversal (conf: {pred_confidence:.2f})"
+            }
+        
+        # Rule 3: Medium winners ($100-$200) - require STRONG reversal
+        if 100 <= profit < 200:
+            if pred_confidence >= 0.75 and predicted_move >= 0.30:
+                return {
+                    'should_close': True,
+                    'reason': f"Strong reversal: ${profit:.2f}, conf {pred_confidence:.2f}, move {predicted_move:.3f}%"
+                }
+            else:
+                self.logger.info(f"MEDIUM WINNER ${profit:.2f} - Reversal not strong enough (conf: {pred_confidence:.2f}, move: {predicted_move:.3f}%)")
+                return {
+                    'should_close': False,
+                    'reason': f"Reversal not strong enough for ${profit:.2f} winner"
+                }
+        
+        # Rule 4: Small winners ($50-$100) - require MEDIUM reversal
+        if 50 <= profit < 100:
+            if (pred_confidence >= 0.75 and predicted_move >= 0.15) or (pred_confidence >= 0.65 and predicted_move >= 0.30):
+                return {
+                    'should_close': True,
+                    'reason': f"Medium reversal: ${profit:.2f}, conf {pred_confidence:.2f}, move {predicted_move:.3f}%"
+                }
+            else:
+                self.logger.info(f"SMALL WINNER ${profit:.2f} - Weak reversal (conf: {pred_confidence:.2f})")
+                return {
+                    'should_close': False,
+                    'reason': f"Weak reversal for ${profit:.2f} winner"
+                }
+        
+        # Rule 5: Tiny winners ($0-$50) - require decent confidence
+        if 0 < profit < 50:
+            if pred_confidence >= 0.60:
+                return {
+                    'should_close': True,
+                    'reason': f"Taking tiny profit ${profit:.2f} on reversal (conf: {pred_confidence:.2f})"
+                }
+            else:
+                return {
+                    'should_close': False,
+                    'reason': f"Reversal too weak for ${profit:.2f} winner"
+                }
+        
+        # Default: hold
         return {
             'should_close': False,
-            'reason': "Position still valid"
+            'reason': "Reversal criteria not met"
         }
     
-    def update_daily_pnl(self, trade_pnl: float, was_winner: bool):
+    def close_all_positions(
+        self,
+        mt5_connector,
+        reason: str = "Daily limit reached"
+    ) -> int:
         """
-        Update daily P&L tracking and consecutive loss counter
+        Close all open positions when daily loss limit is hit
         
         Args:
-            trade_pnl: Profit/loss from closed trade
-            was_winner: True if trade was profitable
+            mt5_connector: MT5 connection instance
+            reason: Reason for closing all positions
+        
+        Returns:
+            Number of positions closed
         """
-        self.daily_pnl += trade_pnl
+        logger.warning(f"⚠️ Closing all positions: {reason}")
+        
+        closed_count = 0
+        positions = mt5_connector.get_positions()
+        
+        for position in positions:
+            ticket = position['ticket']
+            try:
+                result = mt5_connector.close_position(ticket)
+                if result:
+                    closed_count += 1
+                    logger.info(f"✅ Closed position {ticket}")
+            except Exception as e:
+                logger.error(f"❌ Failed to close position {ticket}: {e}")
+        
+        return closed_count
+    
+    def update_daily_pnl(self, trade_pnl: float, was_winner: bool):
         self.trades_today += 1
         
         # Track consecutive losses

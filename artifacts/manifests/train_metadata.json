@@ -28,26 +28,26 @@
       ]
     },
     "windows": {
-      "train_months": 4,
+      "train_months": 6,
       "val_months": 1,
       "test_months": 1,
-      "stride_months": 2
+      "stride_months": 3
     },
     "training": {
-      "hidden_size": 160,
+      "hidden_size": 256,
       "attention_head_size": 4,
-      "dropout": 0.1,
-      "learning_rate": 0.0003,
+      "dropout": 0.15,
+      "learning_rate": 0.0002,
       "weight_decay": 0.001,
       "batch_size": 128,
       "gradient_clip_val": 0.1,
-      "max_epochs": 30,
-      "early_stop_patience": 7,
+      "max_epochs": 40,
+      "early_stop_patience": 8,
       "mixed_precision": true,
       "deterministic": false,
       "fast_dev_run": false,
-      "fast_max_epochs": 30,
-      "fast_max_splits": 1,
+      "fast_max_epochs": 40,
+      "fast_max_splits": 3,
       "fast_batch_size": 128
     },
     "evaluation": {
@@ -88,7 +88,7 @@
     "pytorch": "2.8.0+cpu",
     "pytorch_lightning": "2.5.5",
     "pytorch_forecasting": "1.5.0",
-    "git_commit": "093099a31a008d4aa81f9f8dcf78e74d85e59a5b"
+    "git_commit": "2f01d1d1dc01e25abd41572d706b0f620f485a3d"
   },
   "data_summary": {
     "initial_rows": 42890,
@@ -100,5 +100,5 @@
       "atr_proxy"
     ]
   },
-  "created_at": "2025-11-03T15:52:22.865610"
+  "created_at": "2025-11-04T00:59:26.405227"
 }

@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # Set to True to inject fake signals for testing (alternates BUY/SELL)
 # Set to False to use real model predictions
-TEST_MODE = True
+TEST_MODE = False
 
 # Timeframe mapping
 TIMEFRAME_MAP = {
@@ -106,6 +106,9 @@ class TradingBot:
             'losses': 0,
             'total_profit': 0.0
         }
+        
+        # Track trade IDs for proper logging (ticket -> trade_id mapping)
+        self.active_trades = {}  # {ticket: {'trade_id': str, 'entry_time': datetime}}
         
         # Clear screen and show startup banner
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -448,11 +451,21 @@ class TradingBot:
                     was_winner = profit > 0
                     self.risk_manager.update_daily_pnl(profit, was_winner)
                     
-                    # Log trade close to CSV
+                    # Log trade close to CSV using the original trade_id
                     if self.trade_logger:
                         # Get account info for balance_after
                         account_info = self.mt5.get_account_info()
-                        trade_id = f"{self.symbol}_{ticket}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                        
+                        # Lookup original trade_id or create new one if not found
+                        if ticket in self.active_trades:
+                            trade_id = self.active_trades[ticket]['trade_id']
+                            entry_time = self.active_trades[ticket]['entry_time']
+                            duration_minutes = (datetime.now() - entry_time).total_seconds() / 60
+                            del self.active_trades[ticket]  # Remove from tracking
+                        else:
+                            # Trade not tracked (maybe opened before bot started)
+                            trade_id = f"{self.symbol}_{ticket}_UNKNOWN"
+                            duration_minutes = None
                         
                         self.trade_logger.log_trade_close(
                             trade_id=trade_id,
@@ -462,7 +475,7 @@ class TradingBot:
                             profit_loss=result.get('profit', 0),
                             balance_after=account_info.get('balance', 0),
                             close_reason=close_decision.get('reason', 'UNKNOWN'),
-                            duration_minutes=result.get('duration_minutes'),
+                            duration_minutes=duration_minutes,
                             slippage=None,
                             notes=""
                         )
@@ -483,10 +496,19 @@ class TradingBot:
                     was_winner = profit > 0
                     self.risk_manager.update_daily_pnl(profit, was_winner)
                     
-                    # Log trade close to CSV
+                    # Log trade close to CSV using the original trade_id
                     if self.trade_logger:
                         account_info = self.mt5.get_account_info()
-                        trade_id = f"{self.symbol}_{ticket}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                        
+                        # Lookup original trade_id
+                        if ticket in self.active_trades:
+                            trade_id = self.active_trades[ticket]['trade_id']
+                            entry_time = self.active_trades[ticket]['entry_time']
+                            duration_minutes = (datetime.now() - entry_time).total_seconds() / 60
+                            del self.active_trades[ticket]
+                        else:
+                            trade_id = f"{self.symbol}_{ticket}_UNKNOWN"
+                            duration_minutes = None
                         
                         self.trade_logger.log_trade_close(
                             trade_id=trade_id,
@@ -496,7 +518,7 @@ class TradingBot:
                             profit_loss=result.get('profit', 0),
                             balance_after=account_info.get('balance', 0),
                             close_reason=mgmt_action.get('reason', 'STRATEGY'),
-                            duration_minutes=result.get('duration_minutes'),
+                            duration_minutes=duration_minutes,
                             slippage=None,
                             notes=""
                         )
@@ -544,10 +566,19 @@ class TradingBot:
                     was_winner = profit > 0
                     self.risk_manager.update_daily_pnl(profit, was_winner)
                     
-                    # Log trade close
+                    # Log trade close using original trade_id
                     if self.trade_logger:
                         account_info_updated = self.mt5.get_account_info()
-                        trade_id = f"{self.symbol}_{ticket}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                        
+                        # Lookup original trade_id
+                        if ticket in self.active_trades:
+                            trade_id = self.active_trades[ticket]['trade_id']
+                            entry_time = self.active_trades[ticket]['entry_time']
+                            duration_minutes = (datetime.now() - entry_time).total_seconds() / 60
+                            del self.active_trades[ticket]
+                        else:
+                            trade_id = f"{self.symbol}_{ticket}_UNKNOWN"
+                            duration_minutes = None
                         
                         self.trade_logger.log_trade_close(
                             trade_id=trade_id,
@@ -557,7 +588,7 @@ class TradingBot:
                             profit_loss=result.get('profit', 0),
                             balance_after=account_info_updated.get('balance', 0),
                             close_reason="DIRECTION_CHANGE",
-                            duration_minutes=result.get('duration_minutes'),
+                            duration_minutes=duration_minutes,
                             slippage=None,
                             notes="Closed for opposite direction trade"
                         )
@@ -632,15 +663,23 @@ class TradingBot:
         )
         
         if order_result is not None and order_result.get('retcode', 0) == 10009:
-            console.print(f"[bold green]✅ Trade executed successfully! Ticket: {order_result.get('order', 'N/A')}[/bold green]\n")
+            ticket = order_result.get('order', 0)
+            console.print(f"[bold green]✅ Trade executed successfully! Ticket: {ticket}[/bold green]\n")
             self.stats['total_trades'] += 1
             
-            # Log trade to CSV
+            # Log trade to CSV and track the trade_id
             if self.trade_logger:
-                trade_id = f"{self.symbol}_{order_result.get('order', 0)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                trade_id = f"{self.symbol}_{ticket}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                
+                # Store trade_id mapping for later lookup when closing
+                self.active_trades[ticket] = {
+                    'trade_id': trade_id,
+                    'entry_time': datetime.now()
+                }
+                
                 self.trade_logger.log_trade_open(
                     trade_id=trade_id,
-                    ticket=order_result.get('order', 0),
+                    ticket=ticket,
                     symbol=self.symbol,
                     action=signal['signal'],
                     volume=volume,

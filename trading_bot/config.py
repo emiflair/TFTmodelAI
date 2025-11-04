@@ -22,10 +22,11 @@ MODEL_CONFIG = {
     'symbol': 'XAUUSD',
     'timeframe': '15m',
     
-    # Model paths (None = auto-detect latest)
-    'checkpoint_path': None,  # e.g., CHECKPOINTS_DIR / "tft_XAUUSD_15m_3B_20210702_20220102.ckpt"
-    'scaler_path': None,      # e.g., SCALERS_DIR / "scaler_XAUUSD_fold10.pkl"
-    'manifest_path': None,    # e.g., MANIFESTS_DIR / "feature_manifest.json"
+    # Model paths - Use latest checkpoint (Sep 2024 - Mar 2025)
+    # This checkpoint was trained yesterday (Nov 3, 2025)
+    'checkpoint_path': CHECKPOINTS_DIR / "tft_XAUUSD_15m_3B_20240902_20250302.ckpt",
+    'scaler_path': None,      # Let it auto-detect the matching scaler
+    'manifest_path': MANIFESTS_DIR / "feature_manifest.json",
     
     # Prediction parameters
     'lookback_bars': 128,     # Number of historical bars required

@@ -221,6 +221,146 @@ class TradingStrategy:
             'reason': "Unknown direction"
         }
     
+    def _verify_market_reversal(
+        self,
+        position: Dict,
+        prediction: Dict,
+        profit: float
+    ) -> Dict:
+        """
+        Multi-layer verification system to confirm if market truly reversed
+        
+        Args:
+            position: Open position details
+            prediction: Latest model prediction
+            profit: Current position profit
+        
+        Returns:
+            Dict with reversal decision:
+            {
+                'is_reversal': bool,
+                'confidence_level': str,  # 'LOW', 'MEDIUM', 'HIGH'
+                'should_exit': bool,
+                'reason': str
+            }
+        """
+        pos_type = position['type']
+        pred_direction = prediction.get('direction', 'NEUTRAL')
+        pred_confidence = prediction.get('confidence', 0)
+        predicted_move = prediction.get('move_pct', 0)
+        
+        # Not a reversal if direction is neutral or same
+        if pred_direction == 'NEUTRAL':
+            return {
+                'is_reversal': False,
+                'confidence_level': 'NONE',
+                'should_exit': False,
+                'reason': "Prediction is NEUTRAL"
+            }
+        
+        if (pos_type == 'BUY' and pred_direction == 'UP') or (pos_type == 'SELL' and pred_direction == 'DOWN'):
+            return {
+                'is_reversal': False,
+                'confidence_level': 'NONE',
+                'should_exit': False,
+                'reason': "Prediction confirms position direction"
+            }
+        
+        # Confirmed reversal - now determine confidence level
+        # Layer 1: Check prediction confidence
+        high_confidence_reversal = pred_confidence >= 0.75
+        medium_confidence_reversal = 0.60 <= pred_confidence < 0.75
+        low_confidence_reversal = pred_confidence < 0.60
+        
+        # Layer 2: Check predicted move size
+        strong_move = abs(predicted_move) >= 0.30  # 0.3% or more
+        moderate_move = 0.15 <= abs(predicted_move) < 0.30
+        weak_move = abs(predicted_move) < 0.15
+        
+        # Layer 3: Position profit state
+        big_winner = profit >= 200  # $200+ profit
+        medium_winner = 100 <= profit < 200
+        small_winner = 50 <= profit < 100
+        tiny_winner = 0 < profit < 50
+        losing = profit < 0
+        
+        # CRITICAL RULE 1: Never close big winners ($200+) on reversal
+        if big_winner:
+            return {
+                'is_reversal': True,
+                'confidence_level': 'HIGH' if high_confidence_reversal else 'MEDIUM',
+                'should_exit': False,
+                'reason': f"BIG WINNER ${profit:.2f} - PROTECTED from reversal (conf: {pred_confidence:.2f}, move: {predicted_move:.3f}%)"
+            }
+        
+        # CRITICAL RULE 2: Always close losers on ANY reversal signal
+        if losing:
+            return {
+                'is_reversal': True,
+                'confidence_level': 'HIGH',
+                'should_exit': True,
+                'reason': f"CUTTING LOSS ${profit:.2f} on reversal (conf: {pred_confidence:.2f})"
+            }
+        
+        # RULE 3: Medium winners ($100-$200) - require STRONG reversal
+        if medium_winner:
+            if high_confidence_reversal and strong_move:
+                return {
+                    'is_reversal': True,
+                    'confidence_level': 'HIGH',
+                    'should_exit': True,
+                    'reason': f"Strong reversal: ${profit:.2f} profit, {pred_confidence:.2f} conf, {predicted_move:.3f}% move"
+                }
+            else:
+                return {
+                    'is_reversal': True,
+                    'confidence_level': 'MEDIUM',
+                    'should_exit': False,
+                    'reason': f"MEDIUM WINNER ${profit:.2f} - Reversal not strong enough (conf: {pred_confidence:.2f}, move: {predicted_move:.3f}%)"
+                }
+        
+        # RULE 4: Small winners ($50-$100) - require MEDIUM reversal
+        if small_winner:
+            if (high_confidence_reversal and moderate_move) or (medium_confidence_reversal and strong_move):
+                return {
+                    'is_reversal': True,
+                    'confidence_level': 'MEDIUM',
+                    'should_exit': True,
+                    'reason': f"Medium reversal: ${profit:.2f} profit, {pred_confidence:.2f} conf, {predicted_move:.3f}% move"
+                }
+            else:
+                return {
+                    'is_reversal': True,
+                    'confidence_level': 'LOW',
+                    'should_exit': False,
+                    'reason': f"SMALL WINNER ${profit:.2f} - Weak reversal signal (conf: {pred_confidence:.2f})"
+                }
+        
+        # RULE 5: Tiny winners ($0-$50) - close on any decent reversal
+        if tiny_winner:
+            if pred_confidence >= 0.55:
+                return {
+                    'is_reversal': True,
+                    'confidence_level': 'MEDIUM',
+                    'should_exit': True,
+                    'reason': f"Tiny winner ${profit:.2f} - Taking profit on reversal (conf: {pred_confidence:.2f})"
+                }
+            else:
+                return {
+                    'is_reversal': True,
+                    'confidence_level': 'LOW',
+                    'should_exit': False,
+                    'reason': f"Tiny winner ${profit:.2f} - Reversal too weak (conf: {pred_confidence:.2f})"
+                }
+        
+        # Default: hold
+        return {
+            'is_reversal': True,
+            'confidence_level': 'LOW',
+            'should_exit': False,
+            'reason': f"Reversal detected but criteria not met (conf: {pred_confidence:.2f})"
+        }
+    
     def manage_position(
         self,
         position: Dict,
@@ -251,49 +391,18 @@ class TradingStrategy:
         volume = position['volume']
         profit = position['profit']
         
-        # Check if prediction reversed - SMART EXIT LOGIC
-        pred_direction = prediction.get('direction', 'NEUTRAL')
-        pred_confidence = prediction.get('confidence', 0)
+        # MULTI-LAYER REVERSAL VERIFICATION
+        reversal_check = self._verify_market_reversal(position, prediction, profit)
         
-        if pos_type == 'BUY' and pred_direction == 'DOWN':
-            # Cut losses immediately
-            if profit < 0:
-                return {
-                    'action': 'CLOSE_FULL',
-                    'reason': f"Prediction reversed to DOWN (cutting loss: ${profit:.2f})"
-                }
-            # Close small winners with high confidence reversal
-            elif profit < 100 and pred_confidence >= 0.65:
-                return {
-                    'action': 'CLOSE_FULL',
-                    'reason': f"Prediction reversed to DOWN (small profit: ${profit:.2f})"
-                }
-            # Keep large winners
-            else:
-                return {
-                    'action': 'HOLD',
-                    'reason': f"Keeping winner despite reversal (${profit:.2f})"
-                }
-        
-        if pos_type == 'SELL' and pred_direction == 'UP':
-            # Cut losses immediately
-            if profit < 0:
-                return {
-                    'action': 'CLOSE_FULL',
-                    'reason': f"Prediction reversed to UP (cutting loss: ${profit:.2f})"
-                }
-            # Close small winners with high confidence reversal
-            elif profit < 100 and pred_confidence >= 0.65:
-                return {
-                    'action': 'CLOSE_FULL',
-                    'reason': f"Prediction reversed to UP (small profit: ${profit:.2f})"
-                }
-            # Keep large winners
-            else:
-                return {
-                    'action': 'HOLD',
-                    'reason': f"Keeping winner despite reversal (${profit:.2f})"
-                }
+        if reversal_check['should_exit']:
+            return {
+                'action': 'CLOSE_FULL',
+                'reason': reversal_check['reason']
+            }
+        elif reversal_check['is_reversal'] and not reversal_check['should_exit']:
+            # Reversal detected but not strong enough to exit
+            # Log it but continue with normal management
+            self.logger.info(f"Reversal detected but NOT closing: {reversal_check['reason']}")
         
         # Check if first target reached (partial close)
         if pos_type == 'BUY':
