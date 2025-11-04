@@ -38,6 +38,8 @@ XAUUSD_*.csv
 EURUSD_*.csv
 *.csv
 !requirements.txt
+# Allow this specific training CSV to be tracked
+!XAUUSD_15M.csv
 
 # Trading bot - Include code but exclude logs/data
 !trading_bot/**/*.py
@@ -48,6 +50,8 @@ trading_bot/**/__pycache__/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
+# Allow the Colab training notebook to be tracked
+!colab_train_tft.ipynb
 
 # Logs
 *.log
