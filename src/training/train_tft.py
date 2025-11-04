@@ -185,6 +185,23 @@ def _effective_training_params(config: ProjectConfig) -> Dict[str, int]:
         params["max_splits"] = max(1, config.training.fast_max_splits)
     return params
 
+def _select_precision(mixed_precision: bool):
+    """Prefer bf16 mixed precision if supported; otherwise fall back to 32-bit.
+
+    This avoids fp16 (half) overflows seen in masked_fill/attention on some GPUs.
+    """
+    if not mixed_precision:
+        return 32
+    try:
+        if torch.cuda.is_available():
+            # Prefer bf16 when available (A100/L4, some recent GPUs)
+            if hasattr(torch.cuda, "is_bf16_supported") and torch.cuda.is_bf16_supported():
+                return "bf16-mixed"
+    except Exception:
+        pass
+    # Safe fallback (disable fp16 which can overflow in attention masks)
+    return 32
+
 
 def _create_enhanced_loss(base_loss, config: ProjectConfig):
     """Create enhanced loss function combining quantile loss with directional accuracy."""
@@ -283,7 +300,7 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
         or config.quantiles.default_band[1] not in quantile_list
     ):
         raise ValueError("Default coverage band quantiles must be part of quantile list")
-
+        precision_setting = _select_precision(config.training.mixed_precision)
     results = []
 
     splits_to_run = splits
@@ -372,7 +389,29 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             output_size=len(config.quantiles.quantiles),  # Explicit output size
         )
 
-        precision_setting = "16-mixed" if config.training.mixed_precision else 32
+        # Choose precision robustly: prefer bf16 on Ampere+ GPUs; avoid fp16 on T4 to prevent overflow
+        def _select_precision(cfg: ProjectConfig):
+            try:
+                if not cfg.training.mixed_precision:
+                    return 32
+                if torch.cuda.is_available():
+                    # Prefer explicit bf16 support signal when available
+                    if hasattr(torch.cuda, "is_bf16_supported") and torch.cuda.is_bf16_supported():
+                        print("[precision] Using bf16 mixed precision (hardware supported)")
+                        return "bf16-mixed"
+                    # Fallback via capability check
+                    major, minor = torch.cuda.get_device_capability(0)
+                    if major >= 8:
+                        print("[precision] Using bf16 mixed precision on Ampere+ GPU")
+                        return "bf16-mixed"
+                    # On pre-Ampere GPUs (e.g., T4, 7.5), disable AMP to avoid fp16 overflow in attention masks
+                    print("[precision] Disabling AMP on this GPU to avoid fp16 overflow; using 32-bit precision")
+                    return 32
+            except Exception:
+                pass
+            return 32
+
+        precision_setting = _select_precision(config)
 
         # Enhanced trainer with advanced optimizations
         trainer = pl.Trainer(
