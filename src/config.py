@@ -23,9 +23,9 @@ class DataConfig:
     csv_path: Path = DATA_PATH
     timezone: str = "UTC"
     frequency: str = "15min"
-    lookback_bars: int = 128      # Reduced from 256 for faster processing
+    lookback_bars: int = 256      # Increased from 128 to capture more market context
     horizon_bars: int = 3
-    min_history_bars: int = 40_000
+    min_history_bars: int = 20_000  # Reduced to match smaller dataset
     max_forward_fill_bars: int = 3
     drop_threshold_bars: int = 4
     winsorize_pct: float = 0.001
@@ -42,31 +42,30 @@ class QuantileConfig:
 
 @dataclass
 class TrainingWindowConfig:
-    # ROBUST TRAINING: Use 6 months training + 1 month val + 1 month test
-    # This gives model more data to learn from while still being recent
-    train_months: int = 6   # 6 months of recent market data
+    # OPTIMIZED FOR RECENT DATA: More training data, shorter test windows
+    train_months: int = 9   # Increased from 6 for more context
     val_months: int = 1     # 1 month validation
     test_months: int = 1    # 1 month test
-    stride_months: int = 3  # 3-month stride = ~3 folds covering last year
+    stride_months: int = 2  # More frequent updates (2-month stride)
 
 
 @dataclass
 class TrainingConfig:
-    # MEMORY-OPTIMIZED SETTINGS FOR GPU TRAINING (T4/L4/A100)
-    # Balanced for performance and memory efficiency
-    hidden_size: int = 160           # Reduced from 256 to fit GPU memory
+    # OPTIMIZED FOR RECENT DATA & GENERALIZATION
+    # Prevent overfitting with stronger regularization
+    hidden_size: int = 160           # Balanced capacity
     attention_head_size: int = 4     # Standard attention heads
-    dropout: float = 0.15            # Increased dropout to prevent overfitting
-    learning_rate: float = 2e-4      # Slightly lower for stable learning
+    dropout: float = 0.2             # Increased from 0.15 to prevent overfitting
+    learning_rate: float = 2e-4      # Stable learning rate
     weight_decay: float = 1e-3       # L2 regularization
-    batch_size: int = 64             # Reduced from 128 for memory efficiency
+    batch_size: int = 64             # Memory-efficient batch size
     gradient_clip_val: float = 0.1   # Prevent gradient explosions
-    max_epochs: int = 40             # More epochs for better convergence
-    early_stop_patience: int = 8     # Stop if no improvement for 8 epochs
+    max_epochs: int = 30             # Reduced from 40 to prevent overfitting
+    early_stop_patience: int = 6     # Reduced from 8 for earlier stopping
     mixed_precision: bool = True     # Fast training with BF16/FP32
     deterministic: bool = False      # Non-deterministic is faster
     fast_dev_run: bool = False       # PRODUCTION MODE
-    fast_max_epochs: int = 40        # Match max_epochs
+    fast_max_epochs: int = 30        # Match max_epochs
     fast_max_splits: int = 3         # Train 3 folds for robustness
     fast_batch_size: Optional[int] = 64  # Memory-efficient batch size
 
