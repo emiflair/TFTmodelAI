@@ -392,9 +392,8 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             enable_checkpointing=True,  # Enable automatic checkpointing
         )
 
-    # Fit model (ckpt resume handled in CLI wrapper)
-    trainer.fit(model, train_dl, val_dl)
-
+        # Fit model (ckpt resume handled in CLI wrapper)
+        trainer.fit(model, train_dl, val_dl)
         best_path = Path(checkpoint_callback.best_model_path)
         if not best_path.exists():
             best_path = Path(checkpoint_callback.last_model_path)
