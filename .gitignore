@@ -11,6 +11,7 @@ build/
 
 # Virtual Environment
 .venv/
+.venv312/
 venv/
 ENV/
 
@@ -27,11 +28,8 @@ Thumbs.db
 
 # Training artifacts
 lightning_logs/
-artifacts/checkpoints/*.ckpt
-artifacts/scalers/*.pkl
-artifacts/metrics/*.csv
-artifacts/manifests/*.json
-artifacts/model_cards/*.txt
+artifacts/
+scripts/
 
 # Data files (exclude large training data)
 XAUUSD_*.csv

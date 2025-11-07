@@ -420,7 +420,7 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             pass  # Do nothing - skip all prediction plotting
         model.log_prediction = _no_op_log_prediction
 
-        # Enhanced trainer with memory-efficient settings for Colab
+        # Enhanced trainer with CPU-only mode for local training
         trainer = pl.Trainer(
             max_epochs=runtime_params["max_epochs"],
             gradient_clip_val=config.training.gradient_clip_val,
@@ -430,9 +430,11 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             enable_model_summary=True,
             precision=precision_setting,
             log_every_n_steps=config.logging.log_every_n_steps,
-            # Memory-optimized settings for GPU training
-            accumulate_grad_batches=1,  # Reduced from 2 to save memory
-            val_check_interval=1.0,     # Validate once per epoch to reduce memory pressure
+            # CPU-only training (no GPU)
+            accelerator='cpu',          # Force CPU training
+            devices=1,                  # Use 1 CPU
+            accumulate_grad_batches=1,
+            val_check_interval=1.0,
             num_sanity_val_steps=0,
             enable_checkpointing=True,
         )

@@ -22,13 +22,13 @@ MODEL_CONFIG = {
     'symbol': 'XAUUSD',
     'timeframe': '15m',
     
-    # Model paths - set to None to auto-detect latest after training
-    'checkpoint_path': None,
-    'scaler_path': None,      # Let it auto-detect the matching scaler
-    'manifest_path': MANIFESTS_DIR / "feature_manifest.json",
+    # Model paths - Auto-detect latest checkpoint (will be set after training)
+    'checkpoint_path': None,  # Will auto-detect latest .ckpt file
+    'scaler_path': None,      # Will auto-detect latest scaler
+    'manifest_path': None,    # Will auto-detect manifest
     
     # Prediction parameters
-    'lookback_bars': 128,     # Number of historical bars required
+    'lookback_bars': 256,     # Updated from backtest config (was 128)
     'prediction_horizon': 3,  # Bars ahead to predict
 }
 
@@ -37,10 +37,9 @@ MODEL_CONFIG = {
 # ============================================================================
 
 STRATEGY_CONFIG = {
-    # Signal generation
-    'min_confidence': 0.30,         # Minimum prediction confidence (0-1) - LOWERED for testing
-    'min_move_pct': 0.10,           # Minimum predicted move percentage - LOWERED for testing
-    'min_reward_risk': 0.5,         # Minimum reward:risk ratio - LOWERED for testing
+    # Signal generation - PRODUCTION SETTINGS (from backtest validation)
+    'min_confidence': 0.50,         # Minimum prediction confidence (raised from test mode)
+    'min_move_pct': 0.15,           # Minimum predicted move % (0.15% = ~$5 on XAUUSD)
     
     # Position management
     'enable_trailing_stop': True,   # Enable trailing stops
@@ -48,11 +47,8 @@ STRATEGY_CONFIG = {
     'partial_close_pct': 0.5,       # % of position to close at TP1 (50%)
     
     # Time filters
-    'use_time_filter': False,       # DISABLED for testing - allow trading anytime
-    'allowed_hours': list(range(0, 24)),  # Trading hours in UTC (24/7 for testing)
-    
-    # Signal interval
-    'min_signal_interval_minutes': 15,  # Minimum time between signals
+    'use_time_filter': True,        # ENABLED for production - avoid low liquidity hours
+    'allowed_hours': list(range(1, 22)),  # UTC 01:00-22:00 (avoid midnight rollover)
 }
 
 # ============================================================================
@@ -62,31 +58,31 @@ STRATEGY_CONFIG = {
 RISK_CONFIG = {
     # Account settings
     'account_balance': 10000.0,     # Starting account balance in USD
-    'max_daily_loss': 4.0,          # Maximum daily loss (% of balance) = $400
+    'max_daily_loss': 2.5,          # Maximum daily loss (% of balance) = $250 - CONSERVATIVE
     'max_daily_profit': 5.0,        # Maximum daily profit target (% of balance) = $500
     
-    # Dynamic position sizing based on AI confidence
-    'risk_low_confidence': 0.5,     # Low confidence (0.3-0.49) → 0.5% risk
-    'risk_medium_confidence': 1.0,  # Medium confidence (0.5-0.69) → 1% risk
-    'risk_high_confidence': 2.0,    # High confidence (0.85-1.0) → 2% risk
+    # Dynamic position sizing based on AI confidence (CONSERVATIVE for production)
+    'risk_low_confidence': 0.3,     # Low confidence (0.5-0.59) → 0.3% risk
+    'risk_medium_confidence': 0.5,  # Medium confidence (0.6-0.74) → 0.5% risk
+    'risk_high_confidence': 1.0,    # High confidence (0.75+) → 1% risk
     
     # Position limits
-    'max_lot_size': 2.0,            # Maximum lot size cap
-    'max_open_positions': 2,        # Maximum concurrent positions (same direction only)
+    'max_lot_size': 1.0,            # Maximum lot size cap - REDUCED for safety
+    'max_open_positions': 1,        # Maximum concurrent positions - ONE AT A TIME
     'max_leverage': 10.0,           # Maximum leverage ratio
     'same_direction_only': True,    # Only allow trades in same direction
     
     # Dynamic R:R based on AI confidence
-    'rr_defensive': 0.5,            # Confidence 0.3-0.49 → 1:0.5
-    'rr_normal': 1.0,               # Confidence 0.5-0.69 → 1:1
-    'rr_strong': 2.0,               # Confidence 0.7-0.84 → 1:2
-    'rr_high': 3.0,                 # Confidence 0.85-1.0 → 1:3
+    'rr_defensive': 1.0,            # Confidence 0.5-0.59 → 1:1
+    'rr_normal': 1.5,               # Confidence 0.6-0.74 → 1:1.5
+    'rr_strong': 2.0,               # Confidence 0.75-0.84 → 1:2
+    'rr_high': 2.5,                 # Confidence 0.85-1.0 → 1:2.5
     
     # Cost adjustments for XAUUSD
     'pip_value': 1.0,               # $1 per pip per 0.01 lot (micro lot)
     'spread_cost_per_microlot': 0.5,  # Spread cost in $ per 0.01 lot
     'commission_per_lot': 6.0,      # Commission per 1.0 lot round-turn
-    'max_spread_pips': 25,          # Skip trade if spread > 25 pips
+    'max_spread_pips': 20,          # Skip trade if spread > 20 pips (tighter for prod)
     
     # Slippage and safety
     'slippage_tolerance_pips': 10,  # ±10 pips slippage tolerance
@@ -249,8 +245,6 @@ def validate_config():
     
     if STRATEGY_CONFIG['min_move_pct'] < 0:
         errors.append("min_move_pct must be positive")
-    if STRATEGY_CONFIG.get('min_reward_risk', 0) <= 0:
-        errors.append("strategy.min_reward_risk must be > 0")
     
     # Return validation result
     if errors:
@@ -281,7 +275,6 @@ def print_config():
     print("\n[STRATEGY]")
     print(f"  Min Confidence: {STRATEGY_CONFIG['min_confidence']}")
     print(f"  Min Move %: {STRATEGY_CONFIG['min_move_pct']}%")
-    print(f"  Min R:R: {STRATEGY_CONFIG['min_reward_risk']}")
     print(f"  Trailing Stop: {STRATEGY_CONFIG['enable_trailing_stop']} ({STRATEGY_CONFIG['trailing_distance_pips']} pips)")
     print(f"  Partial Close: {STRATEGY_CONFIG['partial_close_pct'] * 100}%")
     print(f"  Time Filter: {STRATEGY_CONFIG['use_time_filter']} ({STRATEGY_CONFIG['allowed_hours']})")
