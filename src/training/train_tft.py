@@ -420,7 +420,17 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             pass  # Do nothing - skip all prediction plotting
         model.log_prediction = _no_op_log_prediction
 
-        # Enhanced trainer with CPU-only mode for local training
+        # Auto-detect accelerator: use GPU if available (Colab/cloud), otherwise CPU
+        import torch
+        if torch.cuda.is_available():
+            accelerator = 'gpu'
+            devices = 1
+            logger.info(f"🚀 GPU detected! Using CUDA device: {torch.cuda.get_device_name(0)}")
+        else:
+            accelerator = 'cpu'
+            devices = 1
+            logger.info("💻 No GPU detected. Training on CPU (slower but compatible)")
+        
         trainer = pl.Trainer(
             max_epochs=runtime_params["max_epochs"],
             gradient_clip_val=config.training.gradient_clip_val,
@@ -430,9 +440,9 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
             enable_model_summary=True,
             precision=precision_setting,
             log_every_n_steps=config.logging.log_every_n_steps,
-            # CPU-only training (no GPU)
-            accelerator='cpu',          # Force CPU training
-            devices=1,                  # Use 1 CPU
+            # Auto-detect GPU/CPU
+            accelerator=accelerator,
+            devices=devices,
             accumulate_grad_batches=1,
             val_check_interval=1.0,
             num_sanity_val_steps=0,

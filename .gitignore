@@ -48,8 +48,8 @@ trading_bot/**/__pycache__/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
-# Allow the Colab training notebook to be tracked
-!colab_train_tft.ipynb
+# Allow training notebooks to be tracked
+!train_on_colab.ipynb
 
 # Logs
 *.log

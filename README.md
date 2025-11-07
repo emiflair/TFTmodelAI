@@ -52,8 +52,8 @@ Historical Data (XAUUSD_15M.csv)
 
 ```bash
 # Clone repository
-git clone https://github.com/emiflair/TFTmodel.git
-cd TFTmodel
+git clone https://github.com/emiflair/TFTmodelAI.git
+cd TFTmodelAI
 
 # Install dependencies
 pip install -r requirements.txt
@@ -62,47 +62,43 @@ pip install -r requirements.txt
 # Edit trading_bot/config.py with your account details
 ```
 
-### 2. Run Trading Bot
+### 2. Train the Model
 
-**PowerShell (Recommended):**
-```powershell
-.\run_trading_bot.ps1
-```
-
-**Command Prompt:**
+**Option A: Local Training (CPU)**
 ```bash
-run_trading_bot.bat
+# Activate virtual environment
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # Linux/Mac
+
+# Quick test (5 min)
+python train_local.py --fast-dev-run
+
+# Single split (30-60 min)
+python train_local.py --splits 1 --max-epochs 20
+
+# Full training (2-4 hours)
+python train_local.py
 ```
 
-### 3. Analyze Performance
+**Option B: Google Colab (GPU - Faster!)**
+1. Push your code to GitHub
+2. Open `train_on_colab.ipynb` in Google Colab
+3. Runtime → Change runtime type → GPU (T4)
+4. Run all cells (trains in 1-2 hours vs 2-4 hours on CPU)
+5. Download the checkpoint files
 
-After accumulating 20+ trades:
-```powershell
-.\run_learning.ps1
+**Option C: Any Cloud Platform**
+- AWS SageMaker, Azure ML, Paperspace, etc.
+- Just run: `python train_local.py`
+- The code auto-detects GPU and uses it if available
+
+### 3. Run Trading Bot
+
+```bash
+python trading_bot/bot.py
 ```
 
-### 4. Retrain Model
-
-Monthly or when adding new data:
-```powershell
-.\run_training.ps1
-```
-
-## 🧭 Train on Google Colab (GPU)
-
-If you prefer training in Google Colab with a free GPU:
-
-1) Upload this project folder to Google Drive, e.g., `MyDrive/TFTmodelAI` and ensure `XAUUSD_15M.csv` is in the project root.
-
-2) Open the notebook `colab_train_tft.ipynb` in Colab and run all cells:
-
-     - It will mount Drive, install dependencies, verify the setup, and launch training.
-     - Artifacts (checkpoints, scalers, metrics, manifests) are saved under `artifacts/` in your Drive folder.
-
-Notes:
-- In Colab: Runtime → Change runtime type → Hardware accelerator: GPU
-- If pip shows conflicts, restart the runtime and re-run from the install cell.
-- If no GPU is detected, re-check the runtime setting.
+The bot will automatically detect and use the latest trained model.
 
 ## 📁 Project Structure
 
