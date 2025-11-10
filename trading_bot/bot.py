@@ -296,16 +296,16 @@ class TradingBot:
             spread_pips = 0
         
         # 5. Get market data (50%) - Fetch extra bars to account for NaN dropping in feature engineering
-        # Need 256 final rows after features, but lose ~100 rows to NaN dropping, so fetch 400
-        update_progress(50, "[cyan]Fetching market data (400 bars for features)...")
+        # Need 128 final rows after features (model trained with lookback_bars=128), but lose ~50 rows to NaN dropping, so fetch 200
+        update_progress(50, "[cyan]Fetching market data (200 bars for features)...")
         market_data = self.mt5.get_latest_bars(
             symbol=self.symbol,
             timeframe=self.timeframe,
-            count=400
+            count=200
         )
         
-        if market_data is None or len(market_data) < 256:
-            console.print(f"[red]✗ Insufficient data: {len(market_data) if market_data is not None else 0} bars[/red]")
+        if market_data is None or len(market_data) < 128:
+            console.print(f"[red]✗ Insufficient data: {len(market_data) if market_data is not None else 0} bars (need 128+)[/red]")
             return
         
         current_price = market_data['close'].iloc[-1]
@@ -819,6 +819,11 @@ def main():
         'symbol': 'XAUUSD',
         'timeframe': '15m',
         'update_interval': 30,  # ⏱️ Update every 30 seconds
+        
+        # Model paths (Colab-trained checkpoint)
+        'model_checkpoint': 'artifacts/checkpoints/tft_XAUUSD_15m_3B_latest.ckpt',
+        'scaler_path': None,    # Auto-detect
+        'manifest_path': None,  # Auto-detect
         
         # Strategy configuration
         'strategy_config': {

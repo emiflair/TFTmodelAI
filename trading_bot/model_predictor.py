@@ -35,21 +35,29 @@ class ModelPredictor:
             scaler_path: Path to data scaler (.pkl) - None = auto-detect
             manifest_path: Path to feature manifest (.json) - None = auto-detect
         """
-        # Auto-detect model files if not provided
+        # Auto-detect individual model files if not provided
+        detected = None
         if checkpoint_path is None or scaler_path is None or manifest_path is None:
-            logger.info("Auto-detecting model files...")
+            logger.info("Auto-detecting missing model files...")
             detected = get_latest_model()
+        
+        if checkpoint_path is None:
+            checkpoint_path = detected['checkpoint']
+            logger.info(f"Auto-detected checkpoint: {checkpoint_path}")
+        else:
+            logger.info(f"Using specified checkpoint: {checkpoint_path}")
             
-            if checkpoint_path is None:
-                checkpoint_path = detected['checkpoint']
-            if scaler_path is None:
-                scaler_path = detected['scaler']
-            if manifest_path is None:
-                manifest_path = detected['manifest']
+        if scaler_path is None:
+            scaler_path = detected['scaler']
+            logger.info(f"Auto-detected scaler: {scaler_path}")
+        else:
+            logger.info(f"Using specified scaler: {scaler_path}")
             
-            logger.info(f"Found checkpoint: {checkpoint_path}")
-            logger.info(f"Found scaler: {scaler_path}")
-            logger.info(f"Found manifest: {manifest_path}")
+        if manifest_path is None:
+            manifest_path = detected['manifest']
+            logger.info(f"Auto-detected manifest: {manifest_path}")
+        else:
+            logger.info(f"Using specified manifest: {manifest_path}")
         
         self.checkpoint_path = Path(checkpoint_path)
         self.scaler_path = Path(scaler_path)
@@ -100,10 +108,10 @@ class ModelPredictor:
                     'reason': f"Missing columns: {missing_cols}"
                 }
             
-            if len(market_data) < 256:
+            if len(market_data) < 128:
                 return {
                     'ok': False,
-                    'reason': f"Insufficient data: {len(market_data)} bars (need 256)"
+                    'reason': f"Insufficient data: {len(market_data)} bars (need 128)"
                 }
             
             # Get model prediction
@@ -133,6 +141,9 @@ class ModelPredictor:
             
             # Get current price
             current_price = market_data['close'].iloc[-1]
+            
+            # Log raw quantile values for debugging
+            logger.info(f"RAW MODEL OUTPUT - q10: {q10:.2f}, q50: {q50:.2f}, q90: {q90:.2f}, current: {current_price:.2f}")
             
             # Calculate prediction metrics
             predicted_move = q50 - current_price
