@@ -405,11 +405,20 @@ def evaluate_model(model, test_df, train_dataset, config):
     
     # Calculate metrics
     actuals = predictions.y[0].cpu().numpy()
-    preds_q50 = predictions.output['prediction'][:, :, 1].cpu().numpy()  # Median prediction
+    pred_output = predictions.output['prediction'].cpu().numpy()
     
-    # Flatten for single-step predictions
-    if preds_q50.shape[1] == 1:
+    # Handle different output shapes (batch, horizon, quantiles) or (batch, quantiles)
+    if pred_output.ndim == 3:
+        preds_q50 = pred_output[:, :, 1]  # Median prediction across horizon
+    elif pred_output.ndim == 2:
+        preds_q50 = pred_output[:, 1]  # Median prediction (single horizon)
+    else:
+        preds_q50 = pred_output  # Fallback
+    
+    # Flatten if needed
+    if actuals.ndim > 1 and actuals.shape[1] == 1:
         actuals = actuals[:, 0]
+    if preds_q50.ndim > 1 and preds_q50.shape[1] == 1:
         preds_q50 = preds_q50[:, 0]
     
     # Calculate errors
