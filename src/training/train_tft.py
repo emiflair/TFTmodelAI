@@ -13,6 +13,7 @@ Adds CLI flags for Colab usage and long training sessions:
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from dataclasses import asdict
 from datetime import datetime
@@ -53,6 +54,13 @@ from ..pipeline import build_training_frames
 from ..preprocessing.scalers import RobustScalerStore
 from ..preprocessing.enhanced_scalers import EnhancedScalerStore, detect_feature_types
 from ..utils.seeding import set_global_seeds
+
+# Initialize logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 
 def _version_metadata() -> Dict[str, str]:

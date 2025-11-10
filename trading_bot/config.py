@@ -22,8 +22,8 @@ MODEL_CONFIG = {
     'symbol': 'XAUUSD',
     'timeframe': '15m',
     
-    # Model paths - Auto-detect latest checkpoint (will be set after training)
-    'checkpoint_path': None,  # Will auto-detect latest .ckpt file
+    # Model paths - Use older fully-trained checkpoint instead of half-trained one
+    'checkpoint_path': 'artifacts/checkpoints/tft_XAUUSD_15m_3B_20240701_20250601.ckpt',
     'scaler_path': None,      # Will auto-detect latest scaler
     'manifest_path': None,    # Will auto-detect manifest
     
@@ -37,9 +37,9 @@ MODEL_CONFIG = {
 # ============================================================================
 
 STRATEGY_CONFIG = {
-    # Signal generation - PRODUCTION SETTINGS (from backtest validation)
-    'min_confidence': 0.50,         # Minimum prediction confidence (raised from test mode)
-    'min_move_pct': 0.15,           # Minimum predicted move % (0.15% = ~$5 on XAUUSD)
+    # Signal generation - RELAXED SETTINGS (for half-trained model)
+    'min_confidence': 0.10,         # Lowered to accept partially trained model predictions
+    'min_move_pct': 0.05,           # Lowered to detect smaller moves (0.05% = ~$2 on XAUUSD)
     
     # Position management
     'enable_trailing_stop': True,   # Enable trailing stops

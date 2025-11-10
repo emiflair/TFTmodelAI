@@ -296,15 +296,15 @@ class TradingBot:
             spread_pips = 0
         
         # 5. Get market data (50%) - Fetch extra bars to account for NaN dropping in feature engineering
-        # Need 129 final rows, but lose ~70 rows to NaN dropping, so fetch 250
-        update_progress(50, "[cyan]Fetching market data (250 bars for features)...")
+        # Need 256 final rows after features, but lose ~100 rows to NaN dropping, so fetch 400
+        update_progress(50, "[cyan]Fetching market data (400 bars for features)...")
         market_data = self.mt5.get_latest_bars(
             symbol=self.symbol,
             timeframe=self.timeframe,
-            count=250
+            count=400
         )
         
-        if market_data is None or len(market_data) < 128:
+        if market_data is None or len(market_data) < 256:
             console.print(f"[red]✗ Insufficient data: {len(market_data) if market_data is not None else 0} bars[/red]")
             return
         

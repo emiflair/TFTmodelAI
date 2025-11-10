@@ -73,7 +73,7 @@ class ModelPredictor:
         
         Args:
             market_data: DataFrame with columns [time, open, high, low, close, volume, spread]
-                        Must have at least 128 bars (model lookback requirement)
+                        Must have at least 256 bars (model lookback requirement)
         
         Returns:
             Dict with prediction results:
@@ -100,10 +100,10 @@ class ModelPredictor:
                     'reason': f"Missing columns: {missing_cols}"
                 }
             
-            if len(market_data) < 128:
+            if len(market_data) < 256:
                 return {
                     'ok': False,
-                    'reason': f"Insufficient data: {len(market_data)} bars (need 128)"
+                    'reason': f"Insufficient data: {len(market_data)} bars (need 256)"
                 }
             
             # Get model prediction
