@@ -73,12 +73,14 @@ CONFIG = {
 # ============================================================================
 
 def set_seed(seed=42):
-    """Set random seeds for reproducibility"""
+    """Set random seeds for reproducibility (torch + numpy + lightning)."""
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-    pl.seed_everything(seed)
+    # deterministic for reproducible attention mask creation on GPU
+    pl.seed_everything(seed, workers=True)
+    torch.use_deterministic_algorithms(False)
 
 def load_and_prepare_data(csv_path):
     """Load CSV and prepare for training"""
@@ -265,14 +267,18 @@ def train_model(model, train_dataset, val_dataset, config):
     
     # Create data loaders
     train_dataloader = train_dataset.to_dataloader(
-        train=True, 
-        batch_size=config['batch_size'], 
-        num_workers=0
+        train=True,
+        batch_size=config['batch_size'],
+        num_workers=2 if torch.cuda.is_available() else 0,
+        persistent_workers=torch.cuda.is_available(),
+        pin_memory=torch.cuda.is_available(),
     )
     val_dataloader = val_dataset.to_dataloader(
-        train=False, 
-        batch_size=config['batch_size'] * 2, 
-        num_workers=0
+        train=False,
+        batch_size=config['batch_size'] * 2,
+        num_workers=2 if torch.cuda.is_available() else 0,
+        persistent_workers=torch.cuda.is_available(),
+        pin_memory=torch.cuda.is_available(),
     )
     
     # Create callbacks
@@ -303,7 +309,7 @@ def train_model(model, train_dataset, val_dataset, config):
     
     # Detect accelerator
     if torch.cuda.is_available():
-        accelerator = 'gpu'
+        accelerator = 'auto'
         devices = 1
         print(f"   Using GPU: {torch.cuda.get_device_name(0)}")
     else:
@@ -316,11 +322,15 @@ def train_model(model, train_dataset, val_dataset, config):
         max_epochs=config['max_epochs'],
         accelerator=accelerator,
         devices=devices,
+        precision='16-mixed' if torch.cuda.is_available() else 32,
         gradient_clip_val=config['gradient_clip_val'],
         callbacks=[early_stop_callback, checkpoint_callback, lr_logger],
         logger=logger,
         enable_progress_bar=True,
         enable_model_summary=True,
+        deterministic=False,
+        log_every_n_steps=10,
+        num_sanity_val_steps=0,
     )
     
     # Train!
@@ -451,7 +461,10 @@ def main():
     trainer, best_model_path = train_model(model, train_dataset, val_dataset, CONFIG)
     
     # Load best model for evaluation
+    # ensure map to GPU if available
     best_model = TemporalFusionTransformer.load_from_checkpoint(best_model_path)
+    if torch.cuda.is_available():
+        best_model = best_model.to('cuda')
     
     # Evaluate on test set
     metrics = evaluate_model(best_model, test_df, train_dataset, CONFIG)
