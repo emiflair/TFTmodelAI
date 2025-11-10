@@ -344,13 +344,14 @@ def train_tft_model(config: ProjectConfig = DEFAULT_CONFIG) -> None:
         scaler.transform_inplace(test_df, winsorize=True)
 
         max_encoder_length = config.data.lookback_bars
+        max_prediction_length = config.data.horizon_bars
         training_ds = pf.TimeSeriesDataSet(
             train_df,
             time_idx="time_idx",
             target="target",
             group_ids=["series_id"],
             max_encoder_length=max_encoder_length,
-            max_prediction_length=1,
+            max_prediction_length=max_prediction_length,
             time_varying_known_reals=list(known_future),
             time_varying_unknown_reals=list(unknown),
             static_categoricals=["series_id"],
