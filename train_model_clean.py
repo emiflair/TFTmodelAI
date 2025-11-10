@@ -337,11 +337,12 @@ def train_model(model, train_dataset, val_dataset, config):
     
     lr_logger = LearningRateMonitor(logging_interval='epoch')
     
-    # Create logger
-    logger = TensorBoardLogger(
-        save_dir=config['logs_dir'],
-        name='tft_training'
-    )
+    # Create logger (optional; disable if tensorboard unavailable locally)
+    try:
+        from lightning.pytorch.loggers import TensorBoardLogger as TBL
+        logger = TBL(save_dir=config['logs_dir'], name='tft_training')
+    except (ImportError, ModuleNotFoundError):
+        logger = None  # Train without TensorBoard logger
     
     # Detect accelerator
     if torch.cuda.is_available():
@@ -358,7 +359,7 @@ def train_model(model, train_dataset, val_dataset, config):
         max_epochs=config['max_epochs'],
         accelerator=accelerator,
         devices=devices,
-        precision='16-mixed' if torch.cuda.is_available() else '32-true',
+        precision='32-true',  # Use FP32 to avoid FP16 overflow in attention mask
         gradient_clip_val=config['gradient_clip_val'],
         callbacks=[early_stop_callback, checkpoint_callback, lr_logger],
         logger=logger,
