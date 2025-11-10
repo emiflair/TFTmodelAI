@@ -83,29 +83,65 @@ def set_seed(seed=42):
     torch.use_deterministic_algorithms(False)
 
 def load_and_prepare_data(csv_path):
-    """Load CSV and prepare for training"""
+    """Load CSV and standardize columns, robust to different time/header casings."""
     print(f"\n📊 Loading data from {csv_path}...")
-    
+
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"CSV not found: {csv_path}")
+
     df = pd.read_csv(csv_path)
     print(f"   Loaded {len(df):,} rows")
-    
-    # Rename columns to standard names
-    df = df.rename(columns={
-        'Time (UTC)': 'timestamp',
-        'Open': 'open',
-        'High': 'high', 
-        'Low': 'low',
-        'Close': 'close',
-        'Volume': 'volume'
-    })
-    
+    print(f"   Raw columns: {list(df.columns)}")
+
+    # Normalize column names (lowercase strip)
+    canon_map = {c: c.strip().lower() for c in df.columns}
+
+    # Possible time column variants
+    time_candidates = [
+        'time (utc)', 'time_utc', 'timestamp', 'time', 'date', 'datetime'
+    ]
+    found_time_col = None
+    for col, lc in canon_map.items():
+        if lc in time_candidates:
+            found_time_col = col
+            break
+
+    if found_time_col is None:
+        raise KeyError(f"No time column found. Expected one of {time_candidates}. Got: {list(df.columns)}")
+
+    # Rename to standard schema (case-insensitive matching)
+    rename_rules = {}
+    # Core OHLCV mapping
+    for original in df.columns:
+        lc = original.lower()
+        if original == found_time_col:
+            rename_rules[original] = 'timestamp'
+        elif lc == 'open':
+            rename_rules[original] = 'open'
+        elif lc == 'high':
+            rename_rules[original] = 'high'
+        elif lc == 'low':
+            rename_rules[original] = 'low'
+        elif lc == 'close':
+            rename_rules[original] = 'close'
+        elif lc == 'volume':
+            rename_rules[original] = 'volume'
+
+    df = df.rename(columns=rename_rules)
+
+    required = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        raise KeyError(f"Missing required columns after rename: {missing}. Present: {list(df.columns)}")
+
     # Convert timestamp
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     df = df.sort_values('timestamp').reset_index(drop=True)
-    
+
+    print(f"   Using time column: {found_time_col} -> 'timestamp'")
     print(f"   Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
     print(f"   Close price range: ${df['close'].min():.2f} - ${df['close'].max():.2f}")
-    
+
     return df
 
 def create_features(df, lookback, horizon):
