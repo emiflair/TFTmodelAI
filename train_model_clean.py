@@ -358,7 +358,7 @@ def train_model(model, train_dataset, val_dataset, config):
         max_epochs=config['max_epochs'],
         accelerator=accelerator,
         devices=devices,
-        precision='16-mixed' if torch.cuda.is_available() else 32,
+        precision='16-mixed' if torch.cuda.is_available() else '32-true',
         gradient_clip_val=config['gradient_clip_val'],
         callbacks=[early_stop_callback, checkpoint_callback, lr_logger],
         logger=logger,
